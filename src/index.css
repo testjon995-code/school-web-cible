@@ -31,6 +31,16 @@
  *     for normal white text). Alternatively pair light secondary/accent fills
  *     with dark (`foreground`) text. The shared `Button` primitive honors these
  *     rules (its secondary fill starts at -700).
+ *
+ * WCAG AA non-text contrast (1.4.11, >= 3:1 — controls and meaningful graphics).
+ * Carousels render on BOTH the white and the `surface` (#f8fafc) band, so each
+ * pairing below is measured against both:
+ *   • Pagination, inactive bullet: `muted` #475569 at 0.7 opacity composites to
+ *     ≈ rgb(126 136 150) on white and ≈ rgb(124 134 149) on `surface`
+ *     → ≈ 3.59:1 and ≈ 3.50:1 → pass. Swiper's own default (#000 at 0.2
+ *     opacity) sits near 1.6:1 and FAILS; see the override zone below.
+ *   • Pagination active bullet and navigation arrows: `primary-600` — clears the
+ *     3:1 floor on both bands with room to spare (see Links, above).
  * ----------------------------------------------------------------------------
  */
 
@@ -98,6 +108,18 @@
   /* ===== Shadows (soft, low-opacity slate-tinted) ========================= */
   --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.06);
   --shadow-md: 0 8px 24px -6px rgb(15 23 42 / 0.12);
+  /* Fixed / floating surfaces only. The two steps above cover in-flow surfaces
+     (`shadow-sm` = card at rest, `shadow-md` = card on hover). Elements that
+     float OVER the page need one more step of separation, and they previously
+     reached for Tailwind's built-in `shadow-lg` — the last non-brand elevation
+     in the codebase. Naming that step here keeps the whole elevation vocabulary
+     on brand: same slate tint, same single-layer idiom, continuing the
+     1/2/0.06 → 8/24/0.12 progression. Reached through the auto-generated
+     `shadow-float` utility; consumed by the three persistent conversion widgets
+     (`components/cta/StickyBottomCTA.jsx`, `FloatingWhatsApp.jsx`,
+     `FloatingCall.jsx`). Deliberately a new step rather than reusing
+     `--shadow-md`, which would drop those widgets to the card-hover elevation. */
+  --shadow-float: 0 12px 32px -8px rgb(15 23 42 / 0.18);
 }
 
 /**
@@ -152,6 +174,120 @@
   padding: 0.5rem; /* 8px transparent ring → 26px tap target */
   box-sizing: content-box;
   background-clip: content-box;
+}
+
+/**
+ * Third-party overrides — Swiper control color and contrast.
+ *
+ * OVERRIDES: `--swiper-theme-color` (Swiper declares `#007aff` on `:root`), plus
+ * the pagination color and inactive-bullet variables it leaves unset.
+ *
+ * WHY UN-LAYERED: same reason as the rule above — Swiper's imported CSS sits
+ * outside every cascade layer, and un-layered declarations beat layered ones
+ * regardless of specificity, so no Tailwind utility could reach these.
+ *
+ * WHY ON THESE SELECTORS, NOT `:root`: a declaration on `.swiper` supplies the
+ * value for that element and everything inside it through custom-property
+ * inheritance, so it wins outright instead of tying on specificity with Swiper's
+ * `:root` rule. The three control classes are listed as well so the brand color
+ * still applies when a carousel renders its controls OUTSIDE the slider root —
+ * Swiper skips its own internal control elements whenever an explicit
+ * `navigation.nextEl`/`prevEl` or `pagination.el` is supplied.
+ *
+ * CLOSES: off-brand controls — the arrows and the active bullet computed
+ * `rgb(0, 122, 255)` (iOS blue) instead of the CIBLE primary `#2563eb`.
+ *
+ * CLOSES: WCAG 1.4.11 Non-text Contrast on the pagination. Swiper paints the
+ * inactive bullet `#000` at `0.2` opacity, which lands near 1.6:1 against white
+ * and fails the 3:1 floor for a control that communicates position. The brand
+ * `muted` token at `0.7` opacity measures ≈ 3.59:1 on white and ≈ 3.50:1 on the
+ * `surface` band (carousels appear on both) while staying visibly subordinate to
+ * the saturated `primary-600` active bullet, so active/inactive remain easy to
+ * tell apart. Only color and opacity are set here; the bullet geometry above —
+ * the 10px dot and its ~26px tap target — is untouched.
+ */
+.swiper,
+.swiper-button-prev,
+.swiper-button-next,
+.swiper-pagination {
+  --swiper-theme-color: var(--color-primary-600);
+  --swiper-navigation-color: var(--color-primary-600);
+  --swiper-pagination-color: var(--color-primary-600);
+  --swiper-pagination-bullet-inactive-color: var(--color-muted);
+  --swiper-pagination-bullet-inactive-opacity: 0.7;
+}
+
+/**
+ * Third-party overrides — Swiper slide breathing room.
+ *
+ * OVERRIDES: `.swiper { padding: 0 }`, which Swiper declares un-layered. That one
+ * declaration is why a `pb-12` utility class on a slider root computed to `0px`:
+ * the class is real and present in the markup, but a layered utility cannot beat
+ * an un-layered rule. This is the only position in the cascade that can.
+ *
+ * CLOSES: clipped card shadows. `Card`'s hover elevation (`--shadow-md`: a 24px
+ * blur pulled back by a -6px spread) reaches 6px beyond the card edge, and the
+ * first and last visible cards sit flush with the slider's edges, so that bleed
+ * was being cut off. 8px of inline padding contains it. `overflow: hidden` on the
+ * root is deliberately LEFT IN PLACE — unclipping would let off-screen slides
+ * escape and reintroduce horizontal page overflow. This stays safe because
+ * Swiper's `updateSize()` subtracts container padding before it measures slides,
+ * and Tailwind's preflight makes the box `border-box`, so neither the slider's
+ * outer width nor its slide arithmetic changes. The gutter is also narrower than
+ * the smallest inter-slide gap in the app (Gallery's 16px), so no neighbouring
+ * slide can peek into it.
+ *
+ * CLOSES: the pagination band having nowhere to sit. `padding-block-end` reserves
+ * room below the slides for the bullets and for the deepest part of that same
+ * card shadow, whose 14px tail is its largest extent.
+ *
+ * WHY THE CLASS IS REPEATED: being un-layered is necessary but not sufficient
+ * here. Swiper's `.swiper { padding: 0 }` is a single class, so a plain `.swiper`
+ * override would tie on specificity and fall back to source order — and Swiper's
+ * stylesheet loses that tiebreak in our favour only by accident. It is imported
+ * by the carousel components, so it is bundled into a lazily loaded chunk whose
+ * `<link>` is appended to `<head>` at runtime, AFTER the statically linked entry
+ * stylesheet this file compiles into. A tie would therefore be won by Swiper and
+ * this rule would silently do nothing — the same failure mode as the `pb-12`
+ * class it replaces. Repeating the class costs one notch of specificity and makes
+ * the override independent of bundling and load order, which is the same
+ * guarantee the descendant selector gives the bullet rule above.
+ */
+.swiper.swiper {
+  padding-inline: 0.5rem;
+  padding-block-end: 1rem;
+}
+
+/**
+ * Third-party overrides — Swiper pagination placement.
+ *
+ * OVERRIDES: `.swiper-pagination { position: absolute }` and the `bottom: 8px`
+ * offset Swiper gives a horizontal pagination — both un-layered.
+ *
+ * CLOSES: pagination bullets painted on top of card content. Swiper floats the
+ * band 8px from the slider's bottom edge at `z-index: 10`, directly over the last
+ * rows of every visible card. Returning the element to normal flow puts the
+ * bullets BELOW the cards, which makes an overlap structurally impossible rather
+ * than merely arithmetically avoided. It is already the slider's last child and
+ * the navigation arrows are absolutely positioned, so nothing else in the flow
+ * moves. Swiper's `bottom`/`top` offsets are inert on a static element, while its
+ * `width: 100%` and `text-align: center` still center the bullets.
+ *
+ * The `margin-block-start` leaves a 16px gap, which together with the bullet's own
+ * 8px transparent ring reads as a 24px space between the cards and the painted
+ * dots — matching the `gap-6` card rhythm, and mirrored below by the 8px ring plus
+ * the 16px `padding-block-end` above, so the row sits optically centered in its
+ * band. The card shadow's 14px tail renders inside that gap instead of being cut.
+ *
+ * Scoped to a DIRECT child so it applies only where Swiper renders the pagination
+ * inside the slider, which is its default. A carousel that supplies its own
+ * `pagination.el` elsewhere positions that element itself and reserves no space
+ * here. Swiper's `.swiper-pagination-lock` (`display: none` for a locked,
+ * single-slide pagination) still removes the band entirely, margin included.
+ */
+.swiper > .swiper-pagination {
+  position: static;
+  margin-block-start: 1rem;
 }
 
 /**
