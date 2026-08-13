@@ -60,7 +60,7 @@ function RepresentativeNote({ children, className, id }) {
       role="note"
       id={id}
       className={cn(
-        'flex items-start gap-2 rounded-xl border border-border bg-surface p-4 text-sm text-muted',
+        'flex items-start gap-2 rounded-lg border border-border bg-surface p-4 text-sm text-muted',
         className,
       )}
     >

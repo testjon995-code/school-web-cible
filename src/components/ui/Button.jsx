@@ -32,6 +32,15 @@ import { cn } from '../../lib/cn.js'
  * `outline` variant renders primary-600 text on a transparent surface with a
  * primary-50 hover tint. (secondary-600 = #ea580c is only ~3.56:1 under white
  * text and fails AA, so the secondary fill starts at -700 = #c2410c ≈ 5.18:1.)
+ *
+ * Emphasis ladder — filled (`primary`/`secondary`/`accent`) > `outline` >
+ * `tertiary`. Pick the LOWEST tier that still reads as actionable, so the
+ * admission primary always stays dominant; `tertiary` is never the admission
+ * action itself. `tertiary` drops the fill AND the border and keeps a
+ * PERSISTENT underline, so its lower emphasis is a shape difference rather than
+ * a color difference and survives without color vision (WCAG "never color
+ * alone") — the same reasoning that makes `Card` signal hover by shadow.
+ *
  * Sizes sit on the 8px scale and EVERY size is at least 44px tall — sm/md
  * (44px) and lg (48px) — plus a `min-w-11` floor on the shared base, so all
  * renderings (including icon-only) meet the WCAG 2.5.5/2.5.8 touch-target
@@ -45,7 +54,7 @@ import { cn } from '../../lib/cn.js'
  * accessible name.
  *
  * @param {object} props
- * @param {'primary'|'secondary'|'accent'|'outline'} [props.variant='primary'] Visual style.
+ * @param {'primary'|'secondary'|'accent'|'outline'|'tertiary'} [props.variant='primary'] Visual style.
  * @param {'sm'|'md'|'lg'} [props.size='md'] Control height / padding on the 8px scale.
  * @param {string} [props.to] Internal route path → renders a react-router <Link>.
  * @param {string} [props.href] URL → renders an <a>; external http(s) opens in a new tab.
@@ -69,12 +78,21 @@ const base =
 // the guidance block in src/index.css). Do NOT substitute lighter shades
 // (secondary-500 / secondary-600 / accent-600) under white text; they fail AA
 // for normal text (secondary-600 = #ea580c is only ~3.56:1, secondary-700 =
-// #c2410c ≈ 5.18:1).
+// #c2410c ≈ 5.18:1). Keys are ordered as the emphasis ladder (see JSDoc above).
+// `tertiary` lowers emphasis by removing the fill and border, NOT by lightening
+// the label: primary-700 is darker than `outline`'s primary-600 and measures
+// ≈ 6.7:1 on white, ≈ 6.4:1 on `surface` and ≈ 6.2:1 on the CTASection tint —
+// the light-fill/dark-text direction `Badge` also uses. When editing it: keep
+// `underline` unprefixed (a hover-only underline fails the non-color-cue rule),
+// and add no height/padding utility (that would breach the ≥44px touch target
+// `base` guarantees).
 const variants = {
   primary: 'bg-primary-600 text-white hover:bg-primary-700',
   secondary: 'bg-secondary-700 text-white hover:bg-secondary-800',
   accent: 'bg-accent-700 text-white hover:bg-accent-800',
   outline: 'border-2 border-primary-600 bg-transparent text-primary-600 hover:bg-primary-50',
+  tertiary:
+    'bg-transparent text-primary-700 underline underline-offset-4 hover:bg-primary-50 hover:text-primary-800',
 }
 
 // Size steps on the 8px scale. ALL sizes are ≥44px tall (h-11 = 44px, h-12 =

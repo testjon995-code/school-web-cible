@@ -46,8 +46,9 @@ import { cn } from '../../lib/cn.js'
  *     `accent-700` (#15803d) is ≈ 5:1. The accent (green) token is used per the
  *     folder requirement; the WhatsApp-brand hex is intentionally NOT used.
  *
- * Styling — every value resolves to a Tailwind v4 `@theme` token / native
- * utility (src/index.css); there are no hardcoded or arbitrary (`[..]`) values.
+ * Styling — every value resolves to a Tailwind v4 `@theme` token (src/index.css),
+ * elevation included (`shadow-float`, the fixed/floating tier — deliberately not
+ * the `shadow-md` card step); there are no hardcoded or arbitrary (`[..]`) values.
  * Classes are composed through the canonical `cn()` helper so the string stays
  * mergeable. `prefers-reduced-motion` is neutralised globally in src/index.css,
  * so the `transition-colors` hover micro-interaction needs no extra handling.
@@ -75,7 +76,7 @@ function FloatingWhatsApp() {
       className={cn(
         'fixed bottom-24 right-4 z-40 lg:bottom-6 lg:right-6',
         'flex h-14 w-14 items-center justify-center rounded-full',
-        'bg-accent-600 text-white shadow-lg transition-colors duration-200 hover:bg-accent-700',
+        'bg-accent-600 text-white shadow-float transition-colors duration-200 hover:bg-accent-700',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2',
       )}
     >

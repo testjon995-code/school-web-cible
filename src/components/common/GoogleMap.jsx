@@ -8,9 +8,11 @@ import siteConfig from '../../data/siteConfig.js'
  * the institute's location (State Highway 75 (SH75), Mukhiapatti, Saharghat,
  * Madhubani, Bihar) as a responsive, lazy-loaded Google Maps `<iframe>` so
  * prospective students and parents can find and visit the campus — a core
- * conversion action ("Visit the Institute"). Compose this primitive on the
- * Contact page and inside the Footer; never hand-roll a raw map `<iframe>`
- * elsewhere so the source URL, accessibility, and framing stay consistent.
+ * conversion action ("Visit the Institute"). The Contact page composes this
+ * primitive; the Footer intentionally links out via `siteConfig.mapLink` rather
+ * than embedding, so no third-party iframe loads on every route. Never
+ * hand-roll a raw map `<iframe>` elsewhere so the source URL, accessibility,
+ * and framing stay consistent.
  *
  * Data source: the embed URL and the human "open in Maps" link both come from
  * `siteConfig` (single source of truth) — `siteConfig.mapEmbedUrl` (the
@@ -26,7 +28,7 @@ import siteConfig from '../../data/siteConfig.js'
  *   `aspect-video` ratio the embed reflows on every breakpoint with no horizontal
  *   overflow.
  * - `overflow-hidden` + `rounded-2xl` (--radius-2xl) → clips the map to the brand
- *   rounded-card corners.
+ *   card radius.
  * - `border border-border` (--color-border) → 1px hairline matching the `Card`
  *   surface so the map reads as part of the design system.
  * - `bg-surface` (--color-surface) → a subtle neutral fill shown behind the iframe

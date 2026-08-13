@@ -36,8 +36,9 @@ import { cn } from '../../lib/cn.js'
  *
  * Styling is fully token-driven (Tailwind v4 @theme tokens in src/index.css):
  * brand-blue fill bg-primary-600 → hover bg-primary-700 with white icon
- * (contrast ≈ 5.17:1, passing WCAG AA for non-text/UI), rounded-full, soft
- * shadow, and a colour transition. No hardcoded or arbitrary values are used.
+ * (contrast ≈ 5.17:1, passing WCAG AA for non-text/UI), rounded-full, the
+ * brand shadow-float elevation reserved for fixed/floating surfaces, and a
+ * colour transition. No hardcoded or arbitrary values are used.
  *
  * Accessibility (WCAG AA): the control is icon-only, so it carries an explicit
  * accessible name via aria-label="Call CIBLE"; the decorative FaPhone glyph is
@@ -55,7 +56,7 @@ function FloatingCall() {
       className={cn(
         'fixed bottom-44 right-4 z-40 lg:bottom-28 lg:right-6',
         'flex h-14 w-14 items-center justify-center rounded-full',
-        'bg-primary-600 text-white shadow-lg transition-colors duration-200 hover:bg-primary-700',
+        'bg-primary-600 text-white shadow-float transition-colors duration-200 hover:bg-primary-700',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2',
       )}
     >
