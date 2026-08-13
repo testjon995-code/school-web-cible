@@ -11,12 +11,18 @@
  *
  * REPRESENTATIVE CONTENT — CLIENT MUST CONFIRM (AAP §0.7.2): Durations, highlights,
  * curriculum details, and the discovery fields `level`, `eligibility`, `suitableFor`
- * and `prerequisites` below are representative, production-quality placeholders. Each
- * value is derived from that same record's existing summary/highlights copy — no fee,
- * certification, placement, success-rate or other statistic is asserted anywhere — but
- * every one MUST be confirmed with the institute before launch. While
- * `siteConfig.representativeContent` is true the UI carries the matching site-wide
- * disclosure, so these fields are never presented as verified fact.
+ * and `prerequisites` below are representative, production-quality placeholders. Every
+ * discovery value is GROUNDED in that same record's own summary/highlights copy, but
+ * grounding is not transcription: some values restate that copy closely (Spoken
+ * English's 'Beginner' level and "no prior fluency needed" both come straight from its
+ * "beginner-friendly" summary), while others are reasonable, plan-authorized inferences
+ * drawn from it rather than literal derivations ("Final-year students and graduates" for
+ * Interview Preparation, the "Class 10 pass" entry condition implied by the PCM/PCB
+ * "Class 11 and 12" summaries, and the several "Open to all learners" conditions). No
+ * fee, certification, placement, success-rate or other statistic is asserted anywhere,
+ * and every value — inferred or restated — MUST be confirmed with the institute before
+ * launch. While `siteConfig.representativeContent` is true the UI carries the matching
+ * site-wide disclosure, so these fields are never presented as verified fact.
  *
  * CANONICAL CONTRACT: Titles, slugs, and categories are canonical and MUST NOT be
  * changed — page routing and filtering depend on them. Specifically: `slug` keys the
@@ -28,8 +34,11 @@
  * OPTIONAL FIELDS: `level`, `eligibility`, `suitableFor` and `prerequisites` are
  * OPTIONAL by contract, so every consumer keeps working against a record that lacks
  * them. When a field does not apply to a course its key is OMITTED entirely — never
- * left as an empty string, `null` or `[]` — because `CourseCard` renders each one
- * behind a truthiness guard and therefore reserves no space for an absent value.
+ * left as an empty string, `null` or `[]`. Any consumer that surfaces one MUST read it
+ * behind a truthiness guard, which is the pattern `CourseCard` already applies to
+ * `duration` and `summary`, so an omitted key reserves no space instead of rendering an
+ * empty row. `prerequisites` is present on 6 of the 10 records by design — that is what
+ * keeps a conditional row genuinely conditional.
  * `level` is drawn from a fixed vocabulary so the value reads consistently across
  * cards: 'Beginner' | 'Beginner to Intermediate' | 'Intermediate' |
  * 'Intermediate to Advanced' | 'All levels'.
@@ -69,9 +78,9 @@ export const courses = [
     summary:
       'Master professional communication for the modern workplace. Sharpen your written and spoken English — from crafting clear emails to delivering confident presentations that get you noticed.',
     duration: '3 Months',
-    eligibility: 'Open to all learners',
+    eligibility: 'Basic English reading and writing',
     suitableFor: 'Working professionals and job seekers',
-    prerequisites: 'Basic English reading and writing',
+    prerequisites: 'Basic working knowledge of English',
     highlights: [
       'Business writing and email etiquette',
       'Presentation and meeting skills',
@@ -144,9 +153,9 @@ export const courses = [
     summary:
       'Build a rock-solid foundation in Physics, Chemistry, and Mathematics for Class 11 and 12. Concept-first teaching and regular practice prepare you for board exams and competitive tests like JEE.',
     duration: '12 Months',
-    eligibility: 'Class 11 and 12 science students',
+    eligibility: 'Class 10 pass; Class 11 or 12 science (PCM) students',
     suitableFor: 'Science students targeting boards and JEE',
-    prerequisites: 'Class 10 Mathematics and Science basics',
+    prerequisites: 'Class 10 Mathematics and Science fundamentals',
     highlights: [
       'Concept-focused Physics, Chemistry, and Maths',
       'Class 11 and 12 board syllabus coverage',
@@ -163,7 +172,7 @@ export const courses = [
     summary:
       'Pursue your medical dream with structured Physics, Chemistry, and Biology coaching for Class 11 and 12. Strengthen core concepts and exam temperament for board exams and NEET.',
     duration: '12 Months',
-    eligibility: 'Class 11 and 12 science students',
+    eligibility: 'Class 10 pass; Class 11 or 12 science (PCB) students',
     suitableFor: 'Medical aspirants preparing for NEET',
     prerequisites: 'Class 10 Science fundamentals',
     highlights: [

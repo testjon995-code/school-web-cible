@@ -41,6 +41,16 @@ import { cn } from '../../lib/cn.js'
  * a color difference and survives without color vision (WCAG "never color
  * alone") — the same reasoning that makes `Card` signal hover by shadow.
  *
+ * Interactive states: hover is declared per variant, keyboard focus is the ONE
+ * shared :focus-visible ring in `base`, and disabled is `base`'s native-`disabled`
+ * treatment (`disabled:pointer-events-none disabled:opacity-50`). Pressed feedback
+ * is declared where a variant has nothing to borrow it from: the filled variants
+ * and `outline` each swap a fill or lay down a tint, which is already a visible
+ * change while the control is held, whereas `tertiary` rests with no fill and no
+ * border at all. It therefore carries an explicit `active:` treatment — a deeper
+ * primary-100 wash plus a thickened underline — and the thickening is what keeps
+ * the press perceptible on touch and without color vision.
+ *
  * Sizes sit on the 8px scale and EVERY size is at least 44px tall — sm/md
  * (44px) and lg (48px) — plus a `min-w-11` floor on the shared base, so all
  * renderings (including icon-only) meet the WCAG 2.5.5/2.5.8 touch-target
@@ -82,17 +92,25 @@ const base =
 // `tertiary` lowers emphasis by removing the fill and border, NOT by lightening
 // the label: primary-700 is darker than `outline`'s primary-600 and measures
 // ≈ 6.7:1 on white, ≈ 6.4:1 on `surface` and ≈ 6.2:1 on the CTASection tint —
-// the light-fill/dark-text direction `Badge` also uses. When editing it: keep
-// `underline` unprefixed (a hover-only underline fails the non-color-cue rule),
-// and add no height/padding utility (that would breach the ≥44px touch target
-// `base` guarantees).
+// the light-fill/dark-text direction `Badge` also uses. Because it starts with no
+// fill and no border, its hover and pressed feedback has to be authored
+// explicitly rather than inherited: `hover:` deepens the label and lays down a
+// primary-50 wash, and `active:` steps that wash to primary-100 AND thickens the
+// underline (`decoration-2`), so the pressed state is legible as a SHAPE change
+// on touch, where no hover phase exists. Both pressed pairings stay AA for normal
+// text — primary-700 on primary-100 ≈ 6.0:1, primary-800 on primary-100 ≈ 7.8:1.
+// When editing it: keep `underline` unprefixed (a hover-only underline fails the
+// non-color-cue rule), keep an `active:` cue that is not color-only, and add no
+// height/padding/leading utility (that would breach the ≥44px touch target `base`
+// guarantees — `decoration-*` and `bg-*` are non-layout, which is why they are
+// the safe choices here).
 const variants = {
   primary: 'bg-primary-600 text-white hover:bg-primary-700',
   secondary: 'bg-secondary-700 text-white hover:bg-secondary-800',
   accent: 'bg-accent-700 text-white hover:bg-accent-800',
   outline: 'border-2 border-primary-600 bg-transparent text-primary-600 hover:bg-primary-50',
   tertiary:
-    'bg-transparent text-primary-700 underline underline-offset-4 hover:bg-primary-50 hover:text-primary-800',
+    'bg-transparent text-primary-700 underline underline-offset-4 hover:bg-primary-50 hover:text-primary-800 active:bg-primary-100 active:decoration-2',
 }
 
 // Size steps on the 8px scale. ALL sizes are ≥44px tall (h-11 = 44px, h-12 =

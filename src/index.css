@@ -110,15 +110,21 @@
   --shadow-md: 0 8px 24px -6px rgb(15 23 42 / 0.12);
   /* Fixed / floating surfaces only. The two steps above cover in-flow surfaces
      (`shadow-sm` = card at rest, `shadow-md` = card on hover). Elements that
-     float OVER the page need one more step of separation, and they previously
-     reached for Tailwind's built-in `shadow-lg` — the last non-brand elevation
-     in the codebase. Naming that step here keeps the whole elevation vocabulary
-     on brand: same slate tint, same single-layer idiom, continuing the
+     float OVER the page need one more step of separation, and they reached for
+     Tailwind's built-in `shadow-lg` — the only non-brand elevation left in the
+     codebase. Naming that step here keeps the whole elevation vocabulary on
+     brand: same slate tint, same single-layer idiom, continuing the
      1/2/0.06 → 8/24/0.12 progression. Reached through the auto-generated
-     `shadow-float` utility; consumed by the three persistent conversion widgets
-     (`components/cta/StickyBottomCTA.jsx`, `FloatingWhatsApp.jsx`,
-     `FloatingCall.jsx`). Deliberately a new step rather than reusing
-     `--shadow-md`, which would drop those widgets to the card-hover elevation. */
+     `shadow-float` utility.
+
+     Consumers, stated as they stand today: `components/cta/FloatingWhatsApp.jsx`
+     and `components/cta/FloatingCall.jsx` both consume `shadow-float`.
+     `components/cta/StickyBottomCTA.jsx` is the third INTENDED consumer and is
+     still on `shadow-lg`, so it remains the one non-brand elevation in the tree
+     until that file is migrated onto this token — at which point all three
+     persistent conversion widgets share this step and `shadow-lg` disappears
+     from `src/`. Deliberately a new step rather than reusing `--shadow-md`,
+     which would drop those widgets to the card-hover elevation. */
   --shadow-float: 0 12px 32px -8px rgb(15 23 42 / 0.18);
 }
 
@@ -165,8 +171,14 @@
  * Swiper's own single-class rule, so this wins regardless of stylesheet order,
  * and it is intentionally OUTSIDE Tailwind's `@layer base` because Swiper's
  * imported CSS is un-layered and would otherwise take precedence over a layered
- * rule. Colour/opacity are left to Swiper's own variables, so active/inactive
- * states are unchanged. Applies to every carousel (Gallery, TestimonialSlider).
+ * rule. This rule owns GEOMETRY ONLY — size, padding, box sizing and fill
+ * clipping. It declares no colour and no opacity, so the painted dot still
+ * resolves from Swiper's own custom properties; the block immediately below
+ * re-points those properties at brand values and raises the inactive bullet past
+ * the 3:1 non-text-contrast floor. The two rules therefore COMPOSE rather than
+ * compete — geometry here, colour and opacity there — and the ~26px tap target
+ * survives that recolouring untouched. Applies to every carousel (Gallery,
+ * TestimonialSlider).
  */
 .swiper .swiper-pagination-bullet {
   width: 0.625rem; /* 10px painted dot */

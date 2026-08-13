@@ -39,8 +39,10 @@
  *                        the computer courses via the `items` prop (no filter
  *                        chips — this is already a single-category page).
  * - `<CTASection>`     — the reusable admission call-to-action that closes every
- *                        page (Fill Admission Form / Book Free Counseling /
- *                        WhatsApp / Call), keeping conversion actions reachable.
+ *                        page, offering the four conversion channels (admission /
+ *                        advisor / WhatsApp / call). It owns its own button
+ *                        wording, so this page passes no labels and none are
+ *                        quoted here; see that component for the current copy.
  *
  * Accessibility (WCAG AA): exactly one `<h1>` (the header SectionHeading);
  * section headings are `<h2>`; the FeatureCard tiles and CourseCards use `<h3>`

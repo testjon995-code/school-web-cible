@@ -38,8 +38,10 @@
  * - `<CourseGrid>`     — the responsive grid of `CourseCard`s, pre-filtered to the
  *                        science courses via the `items` prop.
  * - `<CTASection>`     — the reusable admission call-to-action that closes every
- *                        page (Fill Admission Form / Book Free Counseling /
- *                        WhatsApp / Call), keeping conversion actions reachable.
+ *                        page, offering the four conversion channels (admission /
+ *                        advisor / WhatsApp / call). It owns its own button
+ *                        wording, so this page passes no labels and none are
+ *                        quoted here; see that component for the current copy.
  *
  * Accessibility (WCAG AA): exactly ONE `<h1>` (the page header, via
  * `SectionHeading as="h1"`); section titles are `<h2>` (SectionHeading default);

@@ -26,7 +26,11 @@ import siteConfig from '../../data/siteConfig.js'
  * tier 1 is the only `lg` control (48px tall, text-lg, px-8) and the only blue
  * fill; tier 2 steps down to `md` (44px, text-base, px-6); tier 3 drops the fill
  * AND the border and carries a persistent underline, so its lower emphasis is a
- * shape difference. Inside tier 2 the orange/green split encodes the CHANNEL,
+ * shape difference — and because it rests unfilled, `Button` gives it an explicit
+ * pressed state (a deeper primary-100 wash plus a thickened underline) so the
+ * press registers on touch, where there is no hover phase to rely on. Tier 3 is
+ * the only action whose feedback is authored that way; the filled tiers already
+ * swap their own fill. Inside tier 2 the orange/green split encodes the CHANNEL,
  * not the emphasis — both controls share one size and one fill weight, keeping
  * the site's colour-to-intent code intact (blue = navigation, orange =
  * considered admission actions, green = messaging). Every tier still clears the
@@ -39,6 +43,14 @@ import siteConfig from '../../data/siteConfig.js'
  * is removed. Those mobile affordances are ALSO carried globally by
  * components/cta/{FloatingWhatsApp,FloatingCall,StickyBottomCTA}.jsx, mounted
  * once by Layout — this band must never fork another copy of them.
+ *
+ * LABEL OWNERSHIP — this file is the single authority for the wording of these
+ * four actions. All 18 consumers render <CTASection /> on its defaults and pass no
+ * labels, so the copy can be revised here alone. Consumer documentation must
+ * therefore stay label-agnostic: describe the band by its four CHANNELS (admission
+ * / advisor / WhatsApp / call), never by quoting the button text, because a quoted
+ * label goes stale in 18 files the moment this band's copy changes. The tier table
+ * above is the one place the exact labels are recorded.
  *
  * Reuse-first (zero duplication): this component composes the single canonical
  * {@link Container} width/gutter primitive and the single canonical polymorphic
