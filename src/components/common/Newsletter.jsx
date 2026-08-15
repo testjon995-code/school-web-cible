@@ -159,7 +159,7 @@ export default function Newsletter({
       <p className="mt-3 text-xs leading-relaxed text-muted">
         Subscribing opens your email app with your address pre-filled and is sent to us via your email provider
         under their terms. See our{' '}
-        <Link to="/privacy-policy" className="font-medium text-primary-700 underline hover:text-primary-800">
+        <Link to="/privacy-policy" className="inline-flex min-h-11 items-center font-medium text-primary-700 underline hover:text-primary-800">
           Privacy Policy
         </Link>
         .

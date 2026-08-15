@@ -57,6 +57,10 @@ import Button from '../ui/Button.jsx'
  * Styling is entirely token-driven (Tailwind v4 @theme tokens defined in
  * src/index.css): every color, spacing, border and shadow resolves to a design
  * token or utility on the 8px scale — no hardcoded or arbitrary bracket values.
+ * The elevation is the brand `shadow-float` step (--shadow-float) reserved for
+ * fixed/floating surfaces — deliberately one step above the `shadow-md` card
+ * hover rather than reusing it — and shared with FloatingWhatsApp and
+ * FloatingCall so all three persistent conversion widgets read as one layer.
  * The bar's bottom padding is applied through the shared `.cta-safe-bottom`
  * design-system class (src/index.css) rather than a Tailwind `pb-*` utility: it
  * keeps the 8px (`p-2`-equivalent, 0.5rem) base padding AND adds the device
@@ -84,7 +88,7 @@ function StickyBottomCTA() {
     <div
       className={cn(
         'fixed inset-x-0 bottom-0 z-40 lg:hidden',
-        'grid grid-cols-3 gap-2 border-t border-border bg-white px-2 pt-2 shadow-lg cta-safe-bottom',
+        'grid grid-cols-3 gap-2 border-t border-border bg-white px-2 pt-2 shadow-float cta-safe-bottom',
       )}
     >
       {/* Call — blue primary, matching FloatingCall. Opens the device dialer in place. */}

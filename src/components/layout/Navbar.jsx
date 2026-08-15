@@ -50,6 +50,32 @@ import logo from '../../assets/logo.svg'
  *   • At `body` level the `fixed inset-0 z-50` drawer paints above the
  *     root-level `z-40` floating widgets / sticky bottom bar.
  *
+ * Scroll-aware elevation (IMPORTANT — non-layout properties only):
+ *   • Past `SCROLL_ELEVATION_THRESHOLD_PX` of page scroll the bar lifts off the
+ *     page with the brand `shadow-md` token; at rest it stays flat
+ *     (`shadow-none`). That is the whole visual contract — it reuses the
+ *     existing card elevation vocabulary rather than inventing a new one.
+ *   • ONLY the box-shadow changes. `border-b border-border` is declared in the
+ *     BASE class list, so the 1px hairline is present and identical in BOTH
+ *     states, and nothing here touches height, padding, `position`, `top` or
+ *     font size. The bar therefore measures a constant 65px (the 64px `h-16`
+ *     row + the 1px hairline) at every scroll offset, which is what makes this
+ *     feature provably incapable of regressing CLS. Do NOT grow this into a
+ *     shrinking/height-animating header, and do NOT drop or widen the border in
+ *     either state — any of those would move the height between 64/65/66px.
+ *   • The subscription lives in its OWN effect. It must not be folded into the
+ *     drawer effect below, which early-returns while the drawer is closed and
+ *     so would never run in the common case.
+ *   • The listener is `passive` (it never calls `preventDefault`, so scrolling
+ *     stays on the compositor) and coalesced through `requestAnimationFrame`,
+ *     and the setter is crossing-guarded, so scrolling 200 → 900px commits ZERO
+ *     re-renders — the INP half of the same Core Web Vitals budget. Cleanup
+ *     removes the listener AND cancels any frame still booked.
+ *   • Reduced-motion users need nothing extra here: the global
+ *     `prefers-reduced-motion` block in src/index.css already neutralises every
+ *     `transition-duration` to 0.01ms, so the state still applies instantly
+ *     while the fade does not play. No JS preference read is duplicated.
+ *
  * Accessibility (WCAG AA):
  *   • Semantic `<nav aria-label="Primary">`; the drawer is a nested
  *     `<nav aria-label="Mobile">` inside a `role="dialog" aria-modal="true"`
@@ -64,8 +90,17 @@ import logo from '../../assets/logo.svg'
  *     the fix for the reported escaping-focus bug). The prior body `overflow`
  *     is captured and restored, so scroll is locked only for the drawer's
  *     lifetime.
- *   • Active route is conveyed by `NavLink` active styling (a token colour
- *     change); `end` on the Home link keeps `/` active only on the exact index.
+ *   • Active route is signalled on TWO independent channels, never colour alone
+ *     (WCAG 1.4.1 Use of Color): a persistent underline (`underline
+ *     decoration-2 underline-offset-4` — the same shape cue that `Button`'s
+ *     `tertiary` variant uses to lower emphasis) PLUS the deeper
+ *     `text-primary-700` token, and `NavLink` emits `aria-current="page"` for
+ *     assistive technology on top of both. Text decoration is paint-only, so the
+ *     indicator adds no height to the 44px link box (see the scroll-aware note
+ *     above for why that matters). The underline is unprefixed rather than a
+ *     `hover:` treatment — a cue that only appears on hover is unavailable to
+ *     touch and keyboard users, and would read as "active" on the wrong link.
+ *     `end` on the Home link keeps `/` active only on the exact index.
  *   • Icons are decorative (`aria-hidden`); every control carries text or an
  *     `aria-label`. The global `:focus-visible` ring (src/index.css) is left
  *     intact for keyboard users.
@@ -85,22 +120,44 @@ import logo from '../../assets/logo.svg'
  * @returns {import('react').ReactElement} The primary navigation bar.
  */
 
+// Page-scroll offset (px) at which the bar switches to its elevated state. Kept
+// deliberately small — 8px, the base step of the project's 8px scale — so the
+// shadow appears as soon as content actually begins to travel underneath the bar
+// rather than after a perceptible lag. Named at module scope so the value is
+// documented once and never buried as a bare number at the call site (and so it
+// is allocated once, not per render).
+const SCROLL_ELEVATION_THRESHOLD_PX = 8
+
 // Module-scope active-link class builder shared by the desktop and mobile
 // `NavLink`s. React Router calls it with `{ isActive }`; the active route gets
-// the deeper primary token, the rest get foreground text with a primary hover.
-// Not exported (the file exposes only the Navbar component) — module-scope
-// `const` is permitted by oxlint `allowConstantExport`.
+// the deeper primary token AND a persistent underline, the rest get foreground
+// text with a primary hover. Not exported (the file exposes only the Navbar
+// component) — module-scope `const` is permitted by oxlint `allowConstantExport`.
+//
+// The underline is the NON-COLOUR half of the active signal (WCAG 1.4.1): colour
+// alone must not carry state, so the active route also differs in shape. Both
+// `underline`/`underline-offset-4` and the `decoration-2` thickness are
+// paint-only properties — they add no content height, so the 44px `min-h-11`
+// target and the bar's constant 65px height are untouched. `no-underline` on the
+// inactive branch states the other side of the pair explicitly, so the two
+// states are guaranteed to differ in the decoration channel regardless of any
+// inherited `text-decoration`. Do not move the underline behind `hover:` (see
+// the JSDoc above) and do not add height/padding/leading utilities here.
 const navLinkClass = ({ isActive }) =>
   cn(
     'inline-flex min-h-11 items-center rounded-md px-2 text-sm font-medium transition-colors',
-    isActive ? 'text-primary-700' : 'text-foreground hover:text-primary-600'
+    isActive
+      ? 'text-primary-700 underline decoration-2 underline-offset-4'
+      : 'text-foreground no-underline hover:text-primary-600'
   )
 
 function Navbar({ className }) {
   // All hooks are declared unconditionally at the top level (oxlint
-  // `react/rules-of-hooks`). `open` toggles the mobile drawer; the refs let the
-  // effect trap focus inside the drawer and restore it to the hamburger.
+  // `react/rules-of-hooks`). `open` toggles the mobile drawer; `scrolled` drives
+  // the bar's elevated state (see the scroll-aware note in the JSDoc); the refs
+  // let the effect trap focus inside the drawer and restore it to the hamburger.
   const [open, setOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   const drawerRef = useRef(null)
   const toggleRef = useRef(null)
 
@@ -189,11 +246,63 @@ function Navbar({ className }) {
     }
   }, [open])
 
+  // Scroll-aware elevation. Deliberately a SEPARATE effect from the drawer one
+  // above: that effect early-returns while the drawer is closed, so a
+  // subscription placed inside it would only be live in the rare open state.
+  // Runs once (empty deps) — it needs nothing from the render scope but the
+  // setter and a module-scope constant, so re-subscribing on every state
+  // crossing would be pure waste.
+  useEffect(() => {
+    // `frame` is both the "a measurement is already booked" ticket and the handle
+    // the cleanup cancels, mirroring the frame discipline in Layout.jsx. `scroll`
+    // can fire many times per frame; the handler only books, and the read happens
+    // once per painted frame.
+    let frame = 0
+
+    const measure = () => {
+      frame = 0
+      const isScrolled = window.scrollY > SCROLL_ELEVATION_THRESHOLD_PX
+      // Crossing guard: returning the previous value lets React bail out of the
+      // render entirely, so a 200 → 900px scroll commits ZERO re-renders and the
+      // component only re-renders when the threshold is actually crossed.
+      setScrolled((prev) => (prev === isScrolled ? prev : isScrolled))
+    }
+
+    const onScroll = () => {
+      if (frame) return
+      frame = window.requestAnimationFrame(measure)
+    }
+
+    // Measure once on mount so a reload part-way down a page — or a deep link
+    // whose scroll position is restored — paints the correct state immediately
+    // instead of waiting for the first scroll event.
+    measure()
+    // `passive`: this handler never calls `preventDefault`, and saying so keeps
+    // scrolling on the compositor instead of waiting on the main thread.
+    window.addEventListener('scroll', onScroll, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (frame) window.cancelAnimationFrame(frame)
+    }
+  }, [])
+
   return (
     <>
       <nav
         aria-label="Primary"
-        className={cn('w-full border-b border-border bg-white/95 backdrop-blur', className)}
+        className={cn(
+          // `border-b border-border` lives HERE, in the base, so the 1px hairline
+          // is identical in both scroll states and the bar stays a constant 65px.
+          'w-full border-b border-border bg-white/95 backdrop-blur transition-shadow duration-200',
+          // The only property the scroll state changes. Both values are declared
+          // `@theme` elevations; `shadow-none` is explicit so the two states
+          // interpolate cleanly. The `shadow-float` step is reserved for the
+          // fixed conversion widgets, and Tailwind's built-in large step is not a
+          // brand token — neither belongs on the bar.
+          scrolled ? 'shadow-md' : 'shadow-none',
+          className
+        )}
       >
         <Container>
           <div className="flex h-16 items-center justify-between gap-4">

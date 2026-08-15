@@ -159,7 +159,7 @@ export default function EventCard({ event, to, className, ...props }) {
         )}
 
         {/* Date badge — day stacked over short month, machine-readable via <time>. */}
-        <div className="absolute left-4 top-4 flex flex-col items-center rounded-xl bg-white px-3 py-2 shadow-sm">
+        <div className="absolute left-4 top-4 flex flex-col items-center rounded-lg bg-white px-3 py-2 shadow-sm">
           <time dateTime={date} className="flex flex-col items-center">
             <span className="text-xl font-bold leading-none text-primary-600">
               {getDay(date)}

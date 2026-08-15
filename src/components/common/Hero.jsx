@@ -19,12 +19,48 @@ import heroImg from '../../assets/hero.svg'
  * any horizontal scroll and touch targets stay comfortably tappable.
  *
  * Conversion (per the admissions-first ruleset): the CTA row exposes the three
- * canonical actions — "Apply for Admission" (internal route → react-router
- * <Link>), WhatsApp (external deep link https://wa.me/919899315093, opens in a
- * new tab via the Button primitive), and click-to-call (tel:+919899315093,
- * opens the device dialer in place). All three are rendered through the single
- * canonical <Button> primitive (never restyled raw anchors), and the brand
- * contact values are read from siteConfig — never hardcoded.
+ * canonical actions, ranked into THREE deliberately distinct emphasis tiers so
+ * the funnel reads at a glance instead of offering three equally weighted
+ * controls. It reuses the SAME ladder as the closing CTASection band, so the
+ * page's opening and closing conversion surfaces read identically:
+ *
+ *   Tier 1 — PRIMARY (dominant)
+ *     1. Apply Now  → internal route /admission     (primary  · size lg)
+ *   Tier 2 — SECONDARY (supporting)
+ *     2. WhatsApp   → siteConfig.whatsappHref        (accent   · size md)
+ *   Tier 3 — TERTIARY (low emphasis)
+ *     3. {phone}    → siteConfig.phoneHref  (tel:)   (tertiary · size md)
+ *
+ * The tiers are separated by MORE than colour (WCAG "never colour alone"):
+ * tier 1 is the only `lg` control (48px tall, text-lg, px-8) and the only blue
+ * fill; tier 2 steps down to `md` (44px, text-base, px-6); tier 3 drops the fill
+ * AND the border and carries a persistent underline, so its lower emphasis is a
+ * shape difference that survives without colour vision. Hue still encodes the
+ * CHANNEL rather than the rank — blue = navigation, green = messaging — keeping
+ * the site's colour-to-intent code intact. Every tier clears the 44px
+ * touch-target floor `Button` enforces (`min-h-11` plus `h-11`/`h-12`), so
+ * demoting a control never shrinks its hit area.
+ *
+ * The size step between tiers 1 and 2 is therefore LOAD-BEARING, not decorative —
+ * do not equalise it. Both are opaque fills with zero border, so shape separates
+ * them not at all, and hue separates them not at all either: primary-600 and
+ * accent-700 have near-identical WCAG relative luminance (0.153 vs 0.159, a
+ * mutual ratio of ~1.03:1), so in greyscale the blue and green fills are the same
+ * tone. The measured 48px/44px height, 18px/16px type and 32px/24px padding steps
+ * are the ONLY thing carrying that pair's ranking.
+ *
+ * All three actions are retained by design — emphasis is re-ranked here, nothing
+ * is removed. /admission is the admission-focused CTA the ruleset requires on
+ * every page, and WhatsApp + click-to-call are the mobile contact affordances it
+ * also mandates; those two are carried globally as well by
+ * components/cta/{FloatingWhatsApp,FloatingCall,StickyBottomCTA}.jsx, mounted
+ * once by Layout, so this band must never fork another copy of them. All three
+ * render through the single canonical <Button> primitive (never restyled raw
+ * anchors): `to` yields a react-router <Link>, while `href` yields a semantic
+ * <a> — the external deep link https://wa.me/919899315093 opens in a new tab and
+ * tel:+919899315093 opens the device dialer in place — so this file must NOT
+ * import <Link> itself. Brand contact values are read from siteConfig, and the
+ * click-to-call label IS `siteConfig.phone`; neither is ever hardcoded.
  *
  * Performance / LCP (review M10): the Hero is entirely above the fold, so its
  * critical content is rendered IMMEDIATELY at its final visible state — it is
@@ -96,20 +132,55 @@ function Hero({
           {/* Lead paragraph uses `text-muted` (the defined --color-muted token,
               ≈7.5:1 on the surface — WCAG AA). */}
           <p className="max-w-prose text-lg text-muted">{subtitle}</p>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            {/* Primary admission CTA → internal route (react-router <Link>). */}
+          {/* Action row — a column at the base layer so all three controls stack
+              full-width and tappable at 320px, becoming a wrapping row from `sm`.
+              `flex-wrap` is load-bearing rather than defensive: the three controls
+              need 546.5px side by side, but `md:grid-cols-2` leaves this column
+              only 340px at 768px and 468px at 1024px, so the row legitimately
+              breaks onto two lines there and settles onto one from ~1181px up.
+              That is controls reflowing, never a label wrapping inside a control.
+              `sm:items-center` is scoped to `sm` on purpose: the tier ladder gives
+              tier 1 a 48px height against tier 2/3's 44px, and in a flex ROW those
+              definite heights would otherwise settle at the cross-START, leaving a
+              4px ragged gap along the shorter controls' bottom edge. Left
+              unprefixed it would instead hijack the base layer, where the cross
+              axis is horizontal — the controls would shrink to their content width
+              and lose the full-width mobile stack. The tiers below are ranked by
+              variant AND size together, never by colour alone; see the tier table
+              in the JSDoc above. */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            {/* Tier 1 — the admission action, as an internal route (react-router
+                <Link>). The ruleset requires a clear admission-focused CTA on
+                every page and this band opens the homepage funnel, so it is the
+                single dominant control: the only `lg` size and the only blue fill
+                in the row. Never demote it. */}
             <Button to="/admission" variant="primary" size="lg">
-              Apply for Admission
+              Apply Now
             </Button>
-            {/* WhatsApp deep link (external http → opens in a new tab). Icon is
-                decorative; the "WhatsApp" text is the accessible name. */}
-            <Button href={siteConfig.whatsappHref} variant="accent" size="lg">
+            {/* Tier 2 — the supporting messaging channel (external http → opens
+                in a new tab). It steps down to `md` (still 44px tall), so the drop
+                from tier 1 is a size + type-scale change rather than a hue change;
+                green stays on messaging, preserving colour-to-intent. The icon is
+                decorative, so the "WhatsApp" text is the whole accessible name. */}
+            <Button href={siteConfig.whatsappHref} variant="accent" size="md">
               <FaWhatsapp aria-hidden="true" className="h-5 w-5" />
               WhatsApp
             </Button>
-            {/* Click-to-call (tel: → opens the dialer in place). The visible
-                phone number labels the control; the icon is decorative. */}
-            <Button href={siteConfig.phoneHref} variant="outline" size="lg">
+            {/* Tier 3 — the low-emphasis channel: click-to-call (tel: → opens the
+                dialer in place). `tertiary` removes the fill AND the border and
+                keeps a persistent underline, so the step down from tier 2 survives
+                without colour vision. It stays a real, full-size control (Button's
+                min-h-11 floor), so the mobile click-to-call affordance is
+                restrained, never diminished. `md`'s px-6 needs no 320px trim here.
+                Measured in-browser at 320px: this band has no inner panel, so the
+                base layer offers the FULL 288px of Container content width against
+                a control that needs 206.5px intrinsically (16px icon + 8px gap +
+                134.5px label + 2x24px padding) — 81.5px of headroom, on one line.
+                That matters because `h-11` is a FIXED height: an over-wide label
+                would not widen the box, it would wrap and clip silently. Verified
+                single-line at all eight mandated widths. The visible phone number
+                labels the control; the icon is decorative. */}
+            <Button href={siteConfig.phoneHref} variant="tertiary" size="md">
               <FaPhoneAlt aria-hidden="true" className="h-4 w-4" />
               {siteConfig.phone}
             </Button>

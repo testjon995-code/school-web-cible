@@ -29,9 +29,12 @@ import { cn } from '../../lib/cn.js'
  *   deliberately a PURE CSS micro-interaction (no framer-motion), so the card
  *   stays safe to render inside sliders/carousels and automatically honors
  *   `prefers-reduced-motion` via the global reduced-motion reset in index.css.
- * - Icon badge: a 48px (`h-12 w-12`), `rounded-xl` tinted disc — a translucent
+ * - Icon badge: a 48px (`h-12 w-12`), `rounded-lg` tinted disc — a translucent
  *   `bg-primary-600/10` fill with a `text-primary-600` glyph — rendered ONLY when
- *   an `icon` is provided (no empty badge otherwise).
+ *   an `icon` is provided (no empty badge otherwise). `rounded-lg` is the brand
+ *   --radius-lg token (0.75rem); Tailwind's stock `xl` step resolves to the very
+ *   same 0.75rem but is a framework value, not one of the two brand radius steps,
+ *   so the badge stays on the token to keep the radius vocabulary singular.
  * - Title: an `<h3>` at `text-lg font-semibold text-foreground`.
  * - Description: a `<p>` at `text-sm leading-relaxed text-muted`.
  *
@@ -84,7 +87,7 @@ function FeatureCard({ icon, title, description, className, ...props }) {
       {...props}
     >
       {Icon ? (
-        <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary-600/10 text-primary-600">
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary-600/10 text-primary-600">
           <Icon className="h-6 w-6" aria-hidden="true" />
         </span>
       ) : null}

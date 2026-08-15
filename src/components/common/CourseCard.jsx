@@ -2,7 +2,7 @@ import Card from '../ui/Card.jsx'
 import Badge from '../ui/Badge.jsx'
 import Button from '../ui/Button.jsx'
 import { cn } from '../../lib/cn.js'
-import { FiClock } from 'react-icons/fi'
+import { FiClock, FiUsers } from 'react-icons/fi'
 import { FaCheck } from 'react-icons/fa'
 import courseEnglish from '../../assets/course-english.svg'
 import coursePersonality from '../../assets/course-personality.svg'
@@ -46,9 +46,46 @@ import courseCareer from '../../assets/course-career.svg'
  * produced by <Button to=...>, which renders a react-router <Link> — so this file
  * never imports Link directly.
  *
+ * Course-discovery meta layer (level / eligibility / suitable-for / prerequisites):
+ * These four fields are OPTIONAL by data contract — see the "OPTIONAL FIELDS" note
+ * in src/data/courses.js — and when one does not apply to a course its key is
+ * OMITTED from the record entirely rather than left empty. Every one is therefore
+ * read behind a truthiness guard, exactly as `duration` and `summary` already were,
+ * so an absent field renders nothing at all: no empty row, no orphaned label, no
+ * dangling separator and no reserved blank space. `prerequisites` is the field this
+ * matters most for (it is genuinely absent on several courses, matching the
+ * "prerequisites where applicable" requirement), but all four are treated the same
+ * way so the card also renders correctly for a record carrying none of them.
+ *
+ * The layer is deliberately built for information DENSITY, not height: the level is
+ * a <Badge> chip rather than a labelled paragraph, duration and suitable-for SHARE a
+ * single wrapping meta row rather than occupying one row each, and eligibility and
+ * prerequisites are compact <dt>/<dd> pairs in small type rather than body-copy
+ * paragraphs. The two wrapper elements are themselves guarded (not just their inner
+ * rows), because an empty flex child would still consume the body's `gap-4` and so
+ * reserve vertical space for a field the course does not have.
+ *
+ * Category is rendered EXACTLY ONCE, as the badge overlaid on the media. The level
+ * chip lives in the body instead of joining it there: at the narrowest supported
+ * width the overlay has roughly 208px of clear space between its left inset and the
+ * floating icon disc, while a category + level badge pair needs appreciably more, so
+ * co-locating them would wrap the pair over the illustration and collide with that
+ * disc.
+ *
  * Accessibility (WCAG AA):
  * - The illustration is decorative (the title conveys the meaning), so it uses an
  *   empty `alt` + `aria-hidden`; every icon is likewise decorative (`aria-hidden`).
+ * - Every meta value is paired with readable text — an icon-led row always renders
+ *   its value as text beside the glyph, and eligibility/prerequisites carry visible
+ *   <dt> labels — so no information is conveyed by icon or color alone.
+ * - The level chip shows only its value ("Beginner"), so the qualifying word is
+ *   supplied as a visually hidden "Level: " text node inside the chip. It is NOT an
+ *   `aria-label`: ARIA labels are ignored on elements that map to the `generic` role,
+ *   which <Badge>'s bare <span> root does, so a label there is silently discarded and
+ *   the chip would announce only "Beginner". Hidden text is honoured unconditionally,
+ *   and because `.sr-only` is absolutely positioned it never becomes a flex item — so
+ *   <Badge>'s `gap-2` does not apply to it and the prefix adds no visible width or
+ *   height. Verified against the rendered accessibility tree, not assumed.
  * - The card title is an <h3> (cards sit beneath a section <h2>).
  * - The CTA label repeats across a page of many cards, so it carries a
  *   descriptive `aria-label` combining the label and the course title.
@@ -58,10 +95,16 @@ import courseCareer from '../../assets/course-career.svg'
  *
  * @param {object} props
  * @param {object} props.course The course record. Shape:
- *   `{ slug, title, category, summary, duration, highlights, icon }` where `category`
- *   is one of `'English' | 'Science' | 'Computer' | 'Career'`, `highlights` is an
- *   array of short strings, and `icon` is a react-icons component REFERENCE (rendered,
- *   never called). When `course` is falsy the component renders `null`.
+ *   `{ slug, title, category, level?, summary, duration, eligibility?, suitableFor?,
+ *   prerequisites?, highlights, icon }` where `category` is one of
+ *   `'English' | 'Science' | 'Computer' | 'Career'`, `highlights` is an array of short
+ *   strings, and `icon` is a react-icons component REFERENCE (rendered, never called).
+ *   `level`, `eligibility`, `suitableFor` and `prerequisites` are OPTIONAL: each is a
+ *   single short string, each key may be absent from the record entirely (`prerequisites`
+ *   is absent on the courses that have none), and each is rendered only when truthy.
+ *   `level` comes from a fixed vocabulary — `'Beginner' | 'Beginner to Intermediate' |
+ *   'Intermediate' | 'Intermediate to Advanced' | 'All levels'` — so it reads
+ *   consistently across cards. When `course` is falsy the component renders `null`.
  * @param {string} [props.to] Optional explicit destination that overrides the
  *   category-derived route for the CTA.
  * @param {string} [props.ctaLabel='Learn more'] Visible CTA text (also used to
@@ -131,6 +174,16 @@ export default function CourseCard({
   // Surface at most three highlights; tolerate a missing/empty highlights array.
   const highlights = course.highlights?.slice(0, 3) ?? []
 
+  // Discovery-field guards. Every one of `level`, `duration`, `suitableFor`,
+  // `eligibility` and `prerequisites` is optional, and an inapplicable key is absent
+  // from the record rather than empty, so nothing may be read unguarded. These
+  // booleans exist to guard the two WRAPPER elements as well as the rows inside them:
+  // an empty flex child still consumes the body's `gap-4`, which would reserve blank
+  // space for a field the course does not carry.
+  const hasMetaRow = Boolean(course.duration || course.suitableFor)
+  const hasMeta = Boolean(course.level) || hasMetaRow
+  const hasDetails = Boolean(course.eligibility || course.prerequisites)
+
   return (
     <Card
       as="article"
@@ -162,19 +215,56 @@ export default function CourseCard({
         ) : null}
       </div>
 
-      {/* Body: icon + title, duration, summary, up to three highlights, and the
-          admission-oriented CTA pinned to the bottom of the card. */}
+      {/* Body: icon + title, the compact discovery meta layer (level chip plus a
+          shared duration / suitable-for row), summary, up to three highlights, the
+          conditional eligibility / prerequisites detail, and the admission-oriented
+          CTA pinned to the bottom of the card. */}
       <div className="flex flex-1 flex-col gap-4 p-6">
         <div className="flex items-center gap-2">
           {Icon ? <Icon className="h-6 w-6 shrink-0 text-primary-600" aria-hidden="true" /> : null}
           <h3 className="text-lg font-semibold text-foreground">{course.title}</h3>
         </div>
 
-        {course.duration ? (
-          <p className="flex items-center gap-2 text-sm text-muted">
-            <FiClock aria-hidden="true" />
-            {course.duration}
-          </p>
+        {/* Discovery meta layer — ONE body child holding the level chip and the
+            combined duration / suitable-for row, so the pair costs a single tight
+            8px internal gap instead of two 16px body gaps. Both the chip row and
+            the meta row wrap rather than overflow at the narrowest width. */}
+        {hasMeta ? (
+          <div className="flex flex-col gap-2">
+            {course.level ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="neutral">
+                  {/* The chip shows only the value ("Beginner"), so the word it
+                      qualifies is supplied as visually hidden text rather than as an
+                      `aria-label`: ARIA labels are IGNORED on an element that maps to
+                      the `generic` role, which a bare <span> like Badge's root does,
+                      so a label there is silently dropped by the accessibility tree.
+                      A real text node cannot be dropped. `.sr-only` is absolutely
+                      positioned, so it is not a flex item and Badge's `gap-2` never
+                      applies to it — the prefix costs zero visible width or height. */}
+                  <span className="sr-only">Level: </span>
+                  {course.level}
+                </Badge>
+              </div>
+            ) : null}
+
+            {hasMetaRow ? (
+              <p className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
+                {course.duration ? (
+                  <span className="inline-flex items-center gap-2">
+                    <FiClock className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {course.duration}
+                  </span>
+                ) : null}
+                {course.suitableFor ? (
+                  <span className="inline-flex items-center gap-2">
+                    <FiUsers className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {course.suitableFor}
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
+          </div>
         ) : null}
 
         {course.summary ? (
@@ -193,6 +283,31 @@ export default function CourseCard({
               </li>
             ))}
           </ul>
+        ) : null}
+
+        {/* Conditional discovery detail, in small type below the outcomes. Real
+            name/value pairs: each <dt> is a visible text label, so the value is never
+            ambiguous and nothing depends on an icon or a color. The <div> groupings
+            are the standard way to pair a <dt> with its <dd> inside a <dl>, and they
+            let the label and value sit on one line instead of two. The whole list —
+            hairline separator included — is omitted when the course carries neither
+            field, so the separator can never dangle. */}
+        {hasDetails ? (
+          <dl className="flex flex-col gap-2 border-t border-border pt-2 text-xs text-muted">
+            {course.eligibility ? (
+              <div className="flex gap-2">
+                <dt className="shrink-0 font-semibold text-foreground">Eligibility</dt>
+                <dd>{course.eligibility}</dd>
+              </div>
+            ) : null}
+
+            {course.prerequisites ? (
+              <div className="flex gap-2">
+                <dt className="shrink-0 font-semibold text-foreground">Prerequisites</dt>
+                <dd>{course.prerequisites}</dd>
+              </div>
+            ) : null}
+          </dl>
         ) : null}
 
         <div className="mt-auto pt-2">

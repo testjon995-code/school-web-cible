@@ -100,9 +100,12 @@ const sections = [
  * `<SectionHeading as="h1">`); every policy section title is a genuine `<h2>`
  * in document order; body copy is real long-form prose in semantic `<p>`
  * elements; the narrow `max-w-3xl` measure keeps line length comfortable; and
- * the contact address is a real, actionable `mailto:` link. All styling flows
+ * the contact address is a real, actionable `mailto:` link sized to the site's
+ * 44px minimum hit area (M12) so it is comfortably tappable. All styling flows
  * through the Tailwind `@theme` brand tokens defined in `src/index.css` on the
- * 8px spacing scale — no hardcoded or arbitrary values.
+ * 8px spacing scale — radius included, so surfaces use the declared
+ * `--radius-lg`/`--radius-2xl` steps rather than Tailwind's stock scale — with
+ * no hardcoded or arbitrary values.
  *
  * @returns {import('react').ReactElement} The rendered privacy policy page.
  */
@@ -132,7 +135,7 @@ function PrivacyPolicy() {
       <Container as="section" className="max-w-3xl pb-16 md:pb-20">
         {/* Draft / pending-approval disclosure (M09). No effective date is
             asserted until the policy is reviewed by counsel and published. */}
-        <div role="note" className="rounded-xl border border-border bg-secondary-50 p-4">
+        <div role="note" className="rounded-lg border border-border bg-secondary-50 p-4">
           <p className="text-sm leading-relaxed text-foreground">
             <strong className="font-semibold">Draft for review.</strong> This Privacy Policy is a representative
             pre-launch draft that describes how the website currently works. It has not yet been reviewed by legal
@@ -153,13 +156,34 @@ function PrivacyPolicy() {
         </h2>
         <p className="text-muted leading-relaxed">
           If you have any questions about this Privacy Policy, please contact us at{' '}
-          <a
-            href={siteConfig.emailHref}
-            className="font-medium text-primary-600 hover:underline"
-          >
-            {siteConfig.email}
-          </a>
-          .
+          {/* Contact deep-link carries a 44px min hit area (M12), matching the
+              treatment Footer's <address> links and GoogleMap's fallback link
+              already use: `inline-flex` keeps the anchor inline-level, `min-h-11`
+              (11 x 0.25rem = 44px on the 8px scale) grows the tap target, and
+              `items-center` re-centres the label inside that taller box.
+
+              The `whitespace-nowrap` wrapper is REQUIRED, not decorative. Giving
+              the anchor `inline-flex` makes it an ATOMIC inline-level box, and CSS
+              allows a soft-wrap opportunity immediately after such a box — so the
+              trailing full stop could break onto a line of its own. Measured: it
+              did exactly that at 414/768/1024/1280/1440px, because the prose
+              measure caps at `max-w-3xl` and leaves only ~2px after the address.
+              (As plain `inline` text the address and the full stop were a single
+              unbreakable run, since UAX #14 permits no break before FULL STOP.)
+              Keeping both inside one nowrap context restores that unbreakable
+              pairing at its original width, so wrapping matches the pre-change
+              layout exactly while the 44px target is retained. The space before
+              the anchor stays OUTSIDE the wrapper so the pair can still move to
+              the next line together at narrow widths. */}
+          <span className="whitespace-nowrap">
+            <a
+              href={siteConfig.emailHref}
+              className="inline-flex min-h-11 items-center font-medium text-primary-600 hover:underline"
+            >
+              {siteConfig.email}
+            </a>
+            .
+          </span>
         </p>
       </Container>
 

@@ -22,7 +22,11 @@ import events from '../data/events.js'
  * Conversion-first composition (AAP §0.6.3 — every page leads toward admission):
  * a page header, five direct-action contact cards (Call / WhatsApp / Email /
  * Visit / Hours), the validated `ContactForm`, a lazy `GoogleMap` embed of the
- * institute, and the shared admission `CTASection` closing the page.
+ * institute, and the shared admission `CTASection` closing the page. Four of the
+ * five cards carry a real control — Call Now, Message on WhatsApp, Send Email and
+ * "View on Google Maps" (the Visit Us directions action, m11) — so every contact
+ * channel is actionable at the ≥44px touch floor the `Button` primitive owns;
+ * Office Hours is informational and correctly carries none.
  *
  * Reuse-first / zero duplication: every UI element is one of the canonical
  * primitives — `Container` (width + gutters), `SectionHeading` (the single
@@ -143,6 +147,27 @@ function Contact() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Visit Us</h2>
                 <p className="mt-1 text-muted">{siteConfig.address}</p>
+                {/* Directions action (m11): the ONLY always-visible, pointer-reachable
+                    "open the location in Maps" affordance on this route. GoogleMap's own
+                    address/link fallback layer is `absolute inset-0` BENEATH the iframe,
+                    so once the configured embed paints it is no longer clickable — hence
+                    this card, not the embed, owns the visible directions action. Reuses
+                    the canonical `Button`, which supplies the ≥44px hit area
+                    (`min-h-11 min-w-11` + `sm` = `h-11`), the shared :focus-visible ring,
+                    the `sanitizeHref` scheme allowlist, and — because `mapLink` is an
+                    external https URL — `target="_blank" rel="noopener noreferrer"`
+                    applied AFTER the props spread. `outline`/`sm`/`mt-3` mirror the Email
+                    sibling exactly, keeping this a low-emphasis location affordance that
+                    never out-shouts the admission CTA.
+                    Wording: "View on Google Maps" deliberately reuses the Footer's
+                    site-wide label for this exact function (leaving the site for Maps),
+                    which is what WCAG 3.2.4 Consistent Identification asks for — the same
+                    functionality identified the same way. GoogleMap's fallback layer says
+                    "Open in Google Maps" instead because it labels the embed itself. All
+                    three resolve to the one `siteConfig.mapLink`, so the shared name is
+                    accurate rather than ambiguous: no two same-named links on this route
+                    lead anywhere different. */}
+                <Button variant="outline" href={siteConfig.mapLink} size="sm" className="mt-3">View on Google Maps</Button>
               </div>
             </Card>
 
