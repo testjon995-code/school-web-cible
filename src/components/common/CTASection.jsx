@@ -112,6 +112,9 @@ import siteConfig from '../../data/siteConfig.js'
  * base enforces. The action row stacks vertically at the unprefixed base layer
  * and only becomes a wrapping row from `sm`, so all four controls stay fully
  * visible and tappable at 320px — below Tailwind's smallest breakpoint.
+ * The root's `data-floating-actions-exclusion` marker lets Layout protect this
+ * closing band's heading/subtitle as well as its controls from the persistent
+ * FAB footprints without coupling the shared guard to component class names.
  *
  * @param {object} props
  * @param {string} [props.title='Ready to shape your future?'] Section heading.
@@ -136,7 +139,11 @@ export default function CTASection({
   const reduce = prefersReducedMotion()
 
   return (
-    <section className={cn('py-16 md:py-24', className)} {...props}>
+    <section
+      className={cn('py-16 md:py-24', className)}
+      {...props}
+      data-floating-actions-exclusion=""
+    >
       <Container>
         <motion.div
           ref={ref}

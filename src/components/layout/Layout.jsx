@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Navbar from './Navbar.jsx'
 import Footer from './Footer.jsx'
@@ -8,6 +8,52 @@ import FloatingWhatsApp from '../cta/FloatingWhatsApp.jsx'
 import FloatingCall from '../cta/FloatingCall.jsx'
 import StickyBottomCTA from '../cta/StickyBottomCTA.jsx'
 import Spinner from '../ui/Spinner.jsx'
+
+// The FAB pair is parked only for content that is interactive or whose
+// legibility is specifically protected by the QA contract. Broadly treating
+// every paragraph/image as an exclusion target would hide the mobile conversion
+// affordance for most of a page; this focused selector prevents tap theft while
+// keeping the actions present whenever their fixed footprints are genuinely free.
+const FLOATING_ACTION_COLLISION_SELECTOR = [
+  'main a[href]',
+  'main button',
+  'main input',
+  'main textarea',
+  'main select',
+  'main summary',
+  'main iframe',
+  'main label',
+  'main [role="button"]',
+  'main [role="link"]',
+  'main [contenteditable="true"]',
+  'main h3',
+  'main [data-floating-actions-exclusion] h2',
+  'main [data-floating-actions-exclusion] p',
+  'footer a[href]',
+  'footer button',
+  'footer input',
+  'footer textarea',
+  'footer select',
+  'footer summary',
+  'footer iframe',
+  'footer label',
+  'footer [role="button"]',
+  'footer [role="link"]',
+  'footer h2',
+  'footer h3',
+  'footer p',
+  'footer li',
+].join(', ')
+
+const FLOATING_ACTION_REVEAL_DELAY_MS = 160
+const FLOATING_ACTION_SETTLE_RECHECK_MS = 250
+
+function rectsOverlap(first, second) {
+  return (
+    Math.min(first.right, second.right) > Math.max(first.left, second.left) &&
+    Math.min(first.bottom, second.bottom) > Math.max(first.top, second.top)
+  )
+}
 
 /**
  * Layout — the single persistent application shell for the CIBLE School of
@@ -22,25 +68,29 @@ import Spinner from '../ui/Spinner.jsx'
  *     Footer's root is a `<div>`, so no landmark is nested/duplicated).
  *   • Renders a working skip-to-content link as the FIRST focusable element.
  *   • Owns the sticky navigation header and the footer.
- *   • Groups the always-available conversion widgets — FloatingWhatsApp,
- *     FloatingCall and the mobile StickyBottomCTA — inside a single labelled
- *     complementary `<aside>` landmark, mounted on every route so Call &
- *     WhatsApp are reachable everywhere, prominently on mobile.
+ *   • Groups the conversion widgets — FloatingWhatsApp, FloatingCall and the
+ *     mobile StickyBottomCTA — inside a single labelled complementary `<aside>`
+ *     landmark, mounted on every route so Call & WhatsApp stay prominent.
+ *   • Parks the duplicate floating pair only while one of their fixed footprints
+ *     would cover an interactive control or protected CTA/footer copy. The mobile
+ *     StickyBottomCTA and the in-flow page actions remain available throughout.
  *   • Restores scroll to the top on every client-side navigation via
  *     `<ScrollToTop/>` (which renders `null`).
  *   • Manages route-change focus: moves keyboard focus into `<main>` and
  *     announces the new page title through a polite live region on navigation.
  *
  * This is the conversion backbone of the site — the shell that guarantees the
- * primary admissions intents (Call / WhatsApp / Admission) never disappear as a
- * visitor moves between pages.
+ * primary admissions intents (Call / WhatsApp / Admission) stay available as a
+ * visitor moves between pages without letting a fixed overlay steal another
+ * control's pointer target.
  *
  * Reuse-first composition (AAP rule: never duplicate components): Layout does
  * NOT re-implement navigation, footer or the widgets — it composes the existing
  * canonical sibling components, each a self-contained default export that reads
- * its own content from `src/data/*`. Layout takes NO props; the only local state
- * is the route-change focus/announcement bookkeeping below, whose hooks are all
- * declared unconditionally at the top level (oxlint `react/rules-of-hooks`).
+ * its own content from `src/data/*`. Layout takes NO props; its local state is
+ * limited to route-change focus/announcement bookkeeping and the shared FAB
+ * collision flag below. All hooks are declared unconditionally at the top level
+ * (oxlint `react/rules-of-hooks`).
  *
  * Route-change focus & announcement (WCAG 2.4.3 Focus Order / 4.1.3 Status
  * Messages): React Router swaps the routed content without moving focus, so a
@@ -80,6 +130,21 @@ import Spinner from '../ui/Spinner.jsx'
  * `lg`, where the bar is hidden. The offset comes from a SHARED design variable
  * so the shell and the bar stay in lock-step (no per-widget magic numbers).
  *
+ * Floating-action collision guard: a single requestAnimationFrame-throttled,
+ * passive scroll/resize check compares the two unchanged 56×56 FAB rectangles
+ * with visible semantic targets in `<main>` / `<footer>`. ResizeObserver and
+ * child-list MutationObserver hooks on those landmarks run the same check
+ * synchronously when a lazy route or dynamic form content arrives without a
+ * viewport event, so the wrapper is parked before that new content is painted.
+ * On collision, the shared STATIC wrapper receives `visibility:hidden` +
+ * `pointer-events:none`; this preserves the exact fixed geometry for responsive
+ * validation, creates no stacking context, causes no layout shift, and lets
+ * pointer hit-testing reach the underlying control. The wrapper is never parked
+ * while it contains focus, and `aria-hidden` mirrors the painted state for
+ * assistive technology. A short clear-state delay prevents edge flicker;
+ * parking itself is immediate and uses no transform/transition, so
+ * reduced-motion behavior is unchanged.
+ *
  * In-shell Suspense + error boundary: `src/App.jsx` wraps the routes in an outer
  * Suspense boundary; this inner boundary around `<Outlet/>` gives a smooth
  * in-shell fallback (the nav + footer stay visible) while a lazy page chunk
@@ -108,8 +173,10 @@ import Spinner from '../ui/Spinner.jsx'
  *     rings.
  *   • The conversion widgets live in a labelled complementary `<aside>` so no
  *     interactive content sits outside a landmark (axe "region").
- *   • Tab order is skip-link → nav → main content → footer → widgets; the mobile
- *     drawer (inside Navbar) traps focus while open and restores it on close.
+ *   • Tab order is skip-link → nav → main content → footer → visible widgets.
+ *     Parked FABs are hidden from pointer, keyboard and AT traversal; the guard
+ *     never removes a FAB that already owns focus. The mobile drawer (inside
+ *     Navbar) traps focus while open and restores it on close.
  *
  * Styling is entirely token-driven (Tailwind v4 `@theme` tokens from
  * src/index.css) on the project's 8px spacing scale — `bg-background` /
@@ -128,8 +195,12 @@ function Layout() {
   // landmark, the polite live region, and the previously-seen pathname.
   const { pathname } = useLocation()
   const mainRef = useRef(null)
+  const footerRef = useRef(null)
   const announcerRef = useRef(null)
   const previousPathnameRef = useRef(pathname)
+  const floatingActionsRef = useRef(null)
+  const floatingActionsParkedRef = useRef(false)
+  const [floatingActionsParked, setFloatingActionsParked] = useState(false)
 
   useEffect(() => {
     // No-op on the initial render (and on React StrictMode's dev remount, where
@@ -156,6 +227,163 @@ function Layout() {
       if (announcer) announcer.textContent = document.title
     })
     return () => window.cancelAnimationFrame(frame)
+  }, [pathname])
+
+  useEffect(() => {
+    const wrapper = floatingActionsRef.current
+    if (!wrapper) return
+
+    let frameId = 0
+    let revealTimerId = 0
+    let settleTimerId = 0
+
+    const updateParking = (nextParked) => {
+      if (floatingActionsParkedRef.current === nextParked) return
+      floatingActionsParkedRef.current = nextParked
+
+      // Apply the accessibility/paint state synchronously before asking React to
+      // reconcile it. MutationObserver runs between the lazy route's DOM commit
+      // and the next paint; toggling the classes here closes the otherwise
+      // possible one-frame window in which newly inserted content could appear
+      // beneath still-active FABs.
+      wrapper.classList.toggle('invisible', nextParked)
+      wrapper.classList.toggle('pointer-events-none', nextParked)
+      wrapper.dataset.floatingActionsParked = nextParked ? 'true' : 'false'
+      if (nextParked) {
+        wrapper.setAttribute('aria-hidden', 'true')
+      } else {
+        wrapper.removeAttribute('aria-hidden')
+      }
+
+      setFloatingActionsParked(nextParked)
+    }
+
+    const clearRevealTimer = () => {
+      if (!revealTimerId) return
+      window.clearTimeout(revealTimerId)
+      revealTimerId = 0
+    }
+
+    const evaluateCollisions = () => {
+      frameId = 0
+
+      const fabRects = Array.from(wrapper.querySelectorAll('a')).map((anchor) =>
+        anchor.getBoundingClientRect()
+      )
+
+      // Both FABs remain mounted even while the wrapper is invisible, so their
+      // fixed rectangles stay measurable. If composition changes unexpectedly,
+      // fail open rather than suppressing unrelated controls.
+      if (fabRects.length !== 2 || fabRects.some((rect) => rect.width === 0 || rect.height === 0)) {
+        clearRevealTimer()
+        updateParking(false)
+        return
+      }
+
+      // Never hide a control that currently owns keyboard focus. Once focus
+      // leaves, focusout schedules another collision check and parking can apply.
+      const focusInside = wrapper.contains(document.activeElement)
+      let collision = false
+
+      if (!focusInside) {
+        const targets = document.querySelectorAll(FLOATING_ACTION_COLLISION_SELECTOR)
+
+        for (const target of targets) {
+          const targetRect = target.getBoundingClientRect()
+          if (
+            targetRect.width === 0 ||
+            targetRect.height === 0 ||
+            !fabRects.some((fabRect) => rectsOverlap(fabRect, targetRect))
+          ) {
+            continue
+          }
+
+          const style = window.getComputedStyle(target)
+          if (
+            style.display === 'none' ||
+            style.visibility === 'hidden' ||
+            Number.parseFloat(style.opacity) === 0 ||
+            target.getAttribute('aria-hidden') === 'true'
+          ) {
+            continue
+          }
+
+          collision = true
+          break
+        }
+      }
+
+      if (collision) {
+        clearRevealTimer()
+        updateParking(true)
+        return
+      }
+
+      if (floatingActionsParkedRef.current && !revealTimerId) {
+        revealTimerId = window.setTimeout(() => {
+          revealTimerId = 0
+          updateParking(false)
+        }, FLOATING_ACTION_REVEAL_DELAY_MS)
+      }
+    }
+
+    const scheduleFrame = () => {
+      if (!frameId) frameId = window.requestAnimationFrame(evaluateCollisions)
+    }
+
+    const evaluateImmediately = () => {
+      if (frameId) {
+        window.cancelAnimationFrame(frameId)
+        frameId = 0
+      }
+      evaluateCollisions()
+    }
+
+    const handleViewportChange = () => {
+      scheduleFrame()
+      if (settleTimerId) window.clearTimeout(settleTimerId)
+      // Re-check after scroll-reveal/layout transitions settle so the decision
+      // reflects the final painted rectangles, not an intermediate transform.
+      settleTimerId = window.setTimeout(scheduleFrame, FLOATING_ACTION_SETTLE_RECHECK_MS)
+    }
+
+    handleViewportChange()
+    window.addEventListener('scroll', handleViewportChange, { passive: true })
+    window.addEventListener('resize', handleViewportChange, { passive: true })
+    wrapper.addEventListener('focusin', scheduleFrame)
+    wrapper.addEventListener('focusout', scheduleFrame)
+
+    const observedLandmarks = [mainRef.current, footerRef.current].filter(Boolean)
+    const handleLandmarkChange = () => {
+      evaluateImmediately()
+      if (settleTimerId) window.clearTimeout(settleTimerId)
+      settleTimerId = window.setTimeout(scheduleFrame, FLOATING_ACTION_SETTLE_RECHECK_MS)
+    }
+    const resizeObserver =
+      typeof window.ResizeObserver === 'function'
+        ? new window.ResizeObserver(handleLandmarkChange)
+        : null
+    const mutationObserver =
+      typeof window.MutationObserver === 'function'
+        ? new window.MutationObserver(handleLandmarkChange)
+        : null
+
+    for (const landmark of observedLandmarks) {
+      resizeObserver?.observe(landmark)
+      mutationObserver?.observe(landmark, { childList: true, subtree: true })
+    }
+
+    return () => {
+      if (frameId) window.cancelAnimationFrame(frameId)
+      clearRevealTimer()
+      if (settleTimerId) window.clearTimeout(settleTimerId)
+      resizeObserver?.disconnect()
+      mutationObserver?.disconnect()
+      window.removeEventListener('scroll', handleViewportChange)
+      window.removeEventListener('resize', handleViewportChange)
+      wrapper.removeEventListener('focusin', scheduleFrame)
+      wrapper.removeEventListener('focusout', scheduleFrame)
+    }
   }, [pathname])
 
   return (
@@ -203,20 +431,27 @@ function Layout() {
       </main>
 
       {/* Layout owns the contentinfo landmark; Footer's own root is a <div>. */}
-      <footer>
+      <footer ref={footerRef}>
         <Footer />
       </footer>
 
-      {/* Always-available conversion widgets, grouped in a single labelled
-          complementary landmark so the fixed Call / WhatsApp / Admission
-          controls are not reported as content outside a landmark (axe "region").
-          The <aside> is statically positioned (no transform/filter/z-index), so
-          it creates no stacking context: each child stays self-positioned
-          (fixed) at z-40 and the mobile drawer (z-50) still paints above them.
-          StickyBottomCTA auto-hides at lg. */}
+      {/* Conversion widgets grouped in one labelled complementary landmark.
+          The FAB wrapper remains static (no transform/filter/z-index), so it
+          creates no stacking context: both anchors stay self-positioned at z-40
+          and the mobile drawer at z-50 still paints above them. When either FAB
+          would cover a protected target, the wrapper becomes invisible and
+          pointer-transparent while retaining its measurable fixed geometry.
+          StickyBottomCTA is outside that wrapper and remains available below lg. */}
       <aside aria-label="Quick contact actions">
-        <FloatingWhatsApp />
-        <FloatingCall />
+        <div
+          ref={floatingActionsRef}
+          className={floatingActionsParked ? 'invisible pointer-events-none' : undefined}
+          aria-hidden={floatingActionsParked ? 'true' : undefined}
+          data-floating-actions-parked={floatingActionsParked ? 'true' : 'false'}
+        >
+          <FloatingWhatsApp />
+          <FloatingCall />
+        </div>
         <StickyBottomCTA />
       </aside>
     </div>

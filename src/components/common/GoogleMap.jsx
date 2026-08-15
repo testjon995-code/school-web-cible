@@ -45,18 +45,19 @@ import siteConfig from '../../data/siteConfig.js'
  *
  * Graceful degradation: an address + "Open in Google Maps" link
  * (`siteConfig.mapLink`, opened in a new `noopener`-isolated tab) is ALWAYS
- * rendered as a layer BENEATH the iframe, so the location stays reachable in
- * every failure mode. When `siteConfig.mapEmbedUrl` is absent/empty no iframe is
- * rendered and the fallback is the sole content; when a network or privacy
- * blocker prevents Google from loading, the iframe paints nothing and the
- * fallback simply shows through. The embed therefore never degrades to an empty
- * box, and the fallback link doubles as a keyboard/AT-reachable text
- * alternative to the embedded frame.
+ * rendered as a layer BENEATH the iframe. When `siteConfig.mapEmbedUrl` is
+ * absent/empty, no iframe is rendered and the fallback is the sole visible,
+ * pointer-reachable content. For a configured embed that the browser/network
+ * blocks, the browser may instead paint its own opaque failed-document
+ * placeholder above that layer; cross-origin frame contents cannot be inspected
+ * reliably enough to remove it. The fallback still remains in the DOM,
+ * accessibility tree and keyboard order as the text alternative, but it is not
+ * guaranteed to be visually exposed or pointer-reachable in that failure mode.
  *
  * Accessibility (WCAG AA): the `<iframe>` always carries a descriptive `title`
  * (mandatory for assistive technology to announce the embedded frame); the
- * fallback exposes a real, focusable `<a>` link. The wrapper adds no interactive
- * semantics of its own.
+ * fallback exposes a real, focusable `<a>` link with the shared 44px minimum
+ * target height. The wrapper adds no interactive semantics of its own.
  *
  * @param {object} props
  * @param {string} [props.title='CIBLE School of Language location on Google Maps']
@@ -83,11 +84,11 @@ export default function GoogleMap({
     >
       {/* Always-present fallback layer. Rendered BEFORE the iframe so it sits
           beneath it in the stacking order (both are `absolute inset-0`; the
-          later sibling — the iframe — paints on top). It keeps the address and
-          an "Open in Google Maps" link reachable in every failure mode: when no
-          embed URL is configured (no iframe is rendered), and when a network or
-          privacy blocker stops Google from loading (the iframe paints nothing
-          and this layer shows through) — so the map never becomes an empty box. */}
+          later sibling — the iframe — paints on top). With no configured embed
+          URL it is the sole visible/pointer-reachable content. If a configured
+          cross-origin frame is blocked, the browser may paint an opaque failure
+          placeholder above this layer; the address/link remain in the DOM and
+          keyboard/AT order, but visual/pointer exposure is browser-dependent. */}
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted">
         <p>{siteConfig.address}</p>
         {siteConfig.mapLink ? (
@@ -95,7 +96,7 @@ export default function GoogleMap({
             href={siteConfig.mapLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-medium text-primary-600 underline underline-offset-2 hover:text-primary-700"
+            className="inline-flex min-h-11 items-center font-medium text-primary-600 underline underline-offset-2 hover:text-primary-700"
           >
             Open in Google Maps
           </a>

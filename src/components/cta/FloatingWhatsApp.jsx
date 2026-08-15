@@ -3,8 +3,8 @@ import { siteConfig } from '../../data/siteConfig.js'
 import { cn } from '../../lib/cn.js'
 
 /**
- * FloatingWhatsApp — the persistent, always-visible WhatsApp floating action
- * button (FAB) for the CIBLE School of Language SPA (AAP §0.6.1 Group 8;
+ * FloatingWhatsApp — the persistent WhatsApp floating action button (FAB) for
+ * the CIBLE School of Language SPA (AAP §0.6.1 Group 8;
  * folder-requirement C, file #1). It fulfils the AAP conversion rule "Display
  * WhatsApp and Call actions prominently on mobile" by anchoring a one-tap
  * WhatsApp chat link to the bottom-right corner of every page.
@@ -32,6 +32,10 @@ import { cn } from '../../lib/cn.js'
  *     sits directly above at `bottom-44` (mobile) / `lg:bottom-28` (desktop) and
  *     shares the same 56px size. Changing this size REQUIRES updating the
  *     sibling's offset (see FloatingCall.jsx) to preserve the non-overlap gap.
+ *   • Layout keeps this geometry unchanged and parks BOTH FABs together only
+ *     while either fixed footprint would cover a protected in-flow control.
+ *     Parking is visibility-only (no transform/resize), and StickyBottomCTA
+ *     keeps Call/WhatsApp available on mobile during those brief intervals.
  *
  * Accessibility (WCAG AA):
  *   • Icon-only control → `aria-label` supplies the accessible name; the
