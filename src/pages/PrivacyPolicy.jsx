@@ -157,10 +157,10 @@ function PrivacyPolicy() {
         <p className="text-muted leading-relaxed">
           If you have any questions about this Privacy Policy, please contact us at{' '}
           {/* Contact deep-link carries a 44px min hit area (M12), matching the
-              treatment Footer's <address> links and GoogleMap's fallback link
-              already use: `inline-flex` keeps the anchor inline-level, `min-h-11`
-              (11 x 0.25rem = 44px on the 8px scale) grows the tap target, and
-              `items-center` re-centres the label inside that taller box.
+              treatment Footer's <address> links already use: `inline-flex` keeps
+              the anchor inline-level, `min-h-11` (11 x 0.25rem = 44px on the 8px
+              scale) grows the tap target, and `items-center` re-centres the label
+              inside that taller box.
 
               The `whitespace-nowrap` wrapper is REQUIRED, not decorative. Giving
               the anchor `inline-flex` makes it an ATOMIC inline-level box, and CSS

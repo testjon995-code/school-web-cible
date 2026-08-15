@@ -3,8 +3,8 @@ import { siteConfig } from '../../data/siteConfig.js'
 import { cn } from '../../lib/cn.js'
 
 /**
- * FloatingCall — the persistent click-to-call floating action button (FAB) for
- * the CIBLE School of Language SPA (AAP §0.6.1 Group 8). It is
+ * FloatingCall — the persistent, always-visible click-to-call floating action
+ * button (FAB) for the CIBLE School of Language SPA (AAP §0.6.1 Group 8). It is
  * rendered once by the layout shell (src/components/layout/Layout.jsx) alongside
  * FloatingWhatsApp and the mobile StickyBottomCTA, keeping the phone dialer one
  * tap away on every route — directly serving the AAP conversion rule "Display
@@ -33,10 +33,6 @@ import { cn } from '../../lib/cn.js'
  *   • Sizing is h-14 w-14 (56px) and MUST stay identical to FloatingWhatsApp —
  *     the stacked bottom offsets above are derived from this height. If either
  *     FAB's size changes, both FABs' offsets must be re-derived together.
- *   • Layout keeps this geometry unchanged and parks BOTH FABs together only
- *     while either fixed footprint would cover a protected in-flow control.
- *     Parking is visibility-only (no transform/resize), and StickyBottomCTA
- *     keeps Call/WhatsApp available on mobile during those brief intervals.
  *
  * Styling is fully token-driven (Tailwind v4 @theme tokens in src/index.css):
  * brand-blue fill bg-primary-600 → hover bg-primary-700 with white icon

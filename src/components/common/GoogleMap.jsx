@@ -14,11 +14,12 @@ import siteConfig from '../../data/siteConfig.js'
  * hand-roll a raw map `<iframe>` elsewhere so the source URL, accessibility,
  * and framing stay consistent.
  *
- * Data source: the embed URL and the human "open in Maps" link both come from
- * `siteConfig` (single source of truth) — `siteConfig.mapEmbedUrl` (the
- * `https://www.google.com/maps/embed?...`-style URL used as the `<iframe src>`)
- * and `siteConfig.mapLink` (the shareable Google Maps search link). No location
- * value is hardcoded here.
+ * Data source: every location fact comes from `siteConfig` (single source of
+ * truth) — `siteConfig.mapEmbedUrl` (the `https://www.google.com/maps/embed?...`
+ * -style URL used as the `<iframe src>`) and `siteConfig.address` (the postal
+ * address shown when no embed URL is configured). No location value is hardcoded
+ * here. The shareable `siteConfig.mapLink` is deliberately NOT read in this file;
+ * the graceful-degradation note below records which component owns that action.
  *
  * Styling (Tailwind v4 `@theme` tokens from src/index.css — zero hardcoded
  * values):
@@ -43,21 +44,25 @@ import siteConfig from '../../data/siteConfig.js'
  * (never the full page path or query) — a deliberately stricter policy than the
  * browser/legacy `no-referrer-when-downgrade` default.
  *
- * Graceful degradation: an address + "Open in Google Maps" link
- * (`siteConfig.mapLink`, opened in a new `noopener`-isolated tab) is ALWAYS
- * rendered as a layer BENEATH the iframe. When `siteConfig.mapEmbedUrl` is
- * absent/empty, no iframe is rendered and the fallback is the sole visible,
- * pointer-reachable content. For a configured embed that the browser/network
- * blocks, the browser may instead paint its own opaque failed-document
- * placeholder above that layer; cross-origin frame contents cannot be inspected
- * reliably enough to remove it. The fallback still remains in the DOM,
- * accessibility tree and keyboard order as the text alternative, but it is not
- * guaranteed to be visually exposed or pointer-reachable in that failure mode.
+ * Graceful degradation: the fallback is the OTHER branch of the embed, not a
+ * layer stacked beneath it. When `siteConfig.mapEmbedUrl` is absent/empty no
+ * iframe is rendered and the institute address is centred in the same reserved
+ * 16:9 box instead, so this surface never degrades to an empty panel.
+ *
+ * The fallback deliberately carries NO "open in Maps" control of its own. A
+ * control rendered beneath a configured iframe is permanently covered yet stays
+ * in the keyboard and accessibility order, which would give the composing page
+ * two actions for one function — one of them unreachable by pointer. The single
+ * interactive "open the location in Google Maps" affordance is therefore owned
+ * once, in page content, by `src/pages/Contact.jsx` (a `Button` on the "Visit Us"
+ * card, which supplies the 44px touch floor and reads `siteConfig.mapLink`), and
+ * site-wide by the Footer's own link. This component owns the EMBED only.
  *
  * Accessibility (WCAG AA): the `<iframe>` always carries a descriptive `title`
- * (mandatory for assistive technology to announce the embedded frame); the
- * fallback exposes a real, focusable `<a>` link with the shared 44px minimum
- * target height. The wrapper adds no interactive semantics of its own.
+ * (mandatory for assistive technology to announce the embedded frame), and that
+ * title is its accessible name. This component contributes no link or button of
+ * its own in either branch, so the page it composes into announces exactly one
+ * map action; the wrapper adds no interactive semantics either.
  *
  * @param {object} props
  * @param {string} [props.title='CIBLE School of Language location on Google Maps']
@@ -82,26 +87,6 @@ export default function GoogleMap({
       )}
       {...props}
     >
-      {/* Always-present fallback layer. Rendered BEFORE the iframe so it sits
-          beneath it in the stacking order (both are `absolute inset-0`; the
-          later sibling — the iframe — paints on top). With no configured embed
-          URL it is the sole visible/pointer-reachable content. If a configured
-          cross-origin frame is blocked, the browser may paint an opaque failure
-          placeholder above this layer; the address/link remain in the DOM and
-          keyboard/AT order, but visual/pointer exposure is browser-dependent. */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted">
-        <p>{siteConfig.address}</p>
-        {siteConfig.mapLink ? (
-          <a
-            href={siteConfig.mapLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex min-h-11 items-center font-medium text-primary-600 underline underline-offset-2 hover:text-primary-700"
-          >
-            Open in Google Maps
-          </a>
-        ) : null}
-      </div>
       {siteConfig.mapEmbedUrl ? (
         <iframe
           src={siteConfig.mapEmbedUrl}
@@ -111,7 +96,18 @@ export default function GoogleMap({
           allowFullScreen
           className="absolute inset-0 h-full w-full border-0"
         />
-      ) : null}
+      ) : (
+        /* No-embed fallback — the alternative branch, never a layer under the
+           iframe, so nothing of this component is ever obscured-but-focusable.
+           It states the address only: the interactive "open in Maps" action is
+           owned once by the composing page (Contact's "Visit Us" card) and
+           site-wide by the Footer, so duplicating it here would put two actions
+           on one page for a single function. `absolute inset-0` fills the
+           reserved 16:9 box, so the panel is never empty. */
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted">
+          <p>{siteConfig.address}</p>
+        </div>
+      )}
     </div>
   )
 }
