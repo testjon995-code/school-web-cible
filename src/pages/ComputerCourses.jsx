@@ -37,12 +37,31 @@
  *                        a react-icons component reference from `benefits`.
  * - `<CourseGrid>`     — the responsive grid of `<CourseCard>`s, pre-filtered to
  *                        the computer courses via the `items` prop (no filter
- *                        chips — this is already a single-category page).
+ *                        chips — this is already a single-category page). Its
+ *                        cards drive admission instead of self-linking: every
+ *                        card is labelled "Apply Now" and targets
+ *                        `/admission?course=<encodeURIComponent(title)>`, which
+ *                        `Admission.jsx` matches back against the catalogue by
+ *                        exact TITLE to preselect that course in the admission
+ *                        form's "Course of Interest" field — so the title is a
+ *                        frozen contract, not free text. The same label composes
+ *                        each card's accessible name ("Apply Now — Basic
+ *                        Computer"), naming the course a repeated CTA applies to.
  * - `<CTASection>`     — the reusable admission call-to-action that closes every
- *                        page, offering the four conversion channels (admission /
- *                        advisor / WhatsApp / call). It owns its own button
- *                        wording, so this page passes no labels and none are
- *                        quoted here; see that component for the current copy.
+ *                        page. It offers four conversion channels (admission /
+ *                        advisor / WhatsApp / call) ranked into THREE deliberate
+ *                        emphasis tiers rather than four equally weighted
+ *                        controls: one dominant admission action, two supporting
+ *                        contact channels, and one low-emphasis `tertiary` call.
+ *                        The tiers step down by size and fill, never by colour
+ *                        alone, and each still clears the 44px touch-target
+ *                        floor, so demoting a control never shrinks its hit
+ *                        area. That component is the single authority for the
+ *                        four button labels — all 18 consumers render it on its
+ *                        defaults, so this page passes none and quotes none here
+ *                        (a quoted label would go stale in 18 files the moment
+ *                        the shared copy changed); its own tier table records the
+ *                        exact wording.
  *
  * Accessibility (WCAG AA): exactly one `<h1>` (the header SectionHeading);
  * section headings are `<h2>`; the FeatureCard tiles and CourseCards use `<h3>`
