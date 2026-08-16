@@ -62,6 +62,18 @@ import events from '../data/events.js'
  * hours are a real `<ul>`. Styling is token-only on the 8px spacing scale with
  * static classNames.
  *
+ * Card icon sizing (do not drop `shrink-0`): each card is a `flex items-start
+ * gap-4` row, so a flex item's default `flex-shrink: 1` let the leading icon
+ * donate width whenever the card's text column needed more than the card had —
+ * and the icon is a replaced element with an intrinsic aspect ratio, so it lost
+ * width rather than wrapping. That is a measured defect, not a hypothetical: the
+ * "Visit Us" marker (`viewBox 0 0 384 512`, the only non-square glyph here)
+ * computed 17.53×20 at 1280 and 9.58×20 at 390, dragging that card's text column
+ * AND its "Open in Google Maps" button 2.47px / 10.42px left of the four
+ * siblings, and at 390 the "Office Hours" clock shrank too (18.23×20, −1.77px),
+ * leaving three ragged left edges down the stack. `shrink-0` on all five pins
+ * every icon to its declared 20×20 box so the cards share one text origin.
+ *
  * @returns {import('react').ReactElement} The Contact page content.
  */
 
@@ -118,7 +130,7 @@ function Contact() {
           {/* Left: contact details */}
           <div className="flex flex-col gap-4">
             <Card className="flex items-start gap-4 p-6">
-              <FaPhone aria-hidden="true" className="mt-1 h-5 w-5 text-primary-600" />
+              <FaPhone aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-primary-600" />
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Call Us</h2>
                 <p className="mt-1 text-muted">{siteConfig.phone}</p>
@@ -127,7 +139,7 @@ function Contact() {
             </Card>
 
             <Card className="flex items-start gap-4 p-6">
-              <FaWhatsapp aria-hidden="true" className="mt-1 h-5 w-5 text-accent-600" />
+              <FaWhatsapp aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-accent-600" />
               <div>
                 <h2 className="text-lg font-semibold text-foreground">WhatsApp</h2>
                 <p className="mt-1 text-muted">Chat with us for quick answers.</p>
@@ -136,7 +148,7 @@ function Contact() {
             </Card>
 
             <Card className="flex items-start gap-4 p-6">
-              <FaEnvelope aria-hidden="true" className="mt-1 h-5 w-5 text-primary-600" />
+              <FaEnvelope aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-primary-600" />
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Email</h2>
                 <p className="mt-1 text-muted">{siteConfig.email}</p>
@@ -145,7 +157,7 @@ function Contact() {
             </Card>
 
             <Card className="flex items-start gap-4 p-6">
-              <FaMapMarkerAlt aria-hidden="true" className="mt-1 h-5 w-5 text-secondary-500" />
+              <FaMapMarkerAlt aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-secondary-500" />
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Visit Us</h2>
                 <p className="mt-1 text-muted">{siteConfig.address}</p>
@@ -174,7 +186,7 @@ function Contact() {
             </Card>
 
             <Card className="flex items-start gap-4 p-6">
-              <FaClock aria-hidden="true" className="mt-1 h-5 w-5 text-primary-600" />
+              <FaClock aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-primary-600" />
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Office Hours</h2>
                 <ul className="mt-1 space-y-1 text-muted">

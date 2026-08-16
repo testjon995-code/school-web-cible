@@ -159,6 +159,49 @@
   z-index: 60;
 }
 
+/* Prose-link tap target. Gives a link that sits INSIDE a flowing sentence the
+   project's 44px minimum pointer target without changing the sentence.
+
+   WHY NOT `inline-flex min-h-11`: that is the right treatment for a link that
+   owns its own line (the Footer's legal links, the Privacy Policy / Terms email
+   links), but an inline-LEVEL flex box contributes its MARGIN box to line-box
+   height, so inside running prose it inflates the one line it lands on by
+   44px − line-height. Measured in the footer newsletter disclosure: the
+   paragraph grew 98px → 122px at 1280 and 58.5px → 83px at 390, with a single
+   31.75px gap against a uniform 19.50px elsewhere (+62.8%), and the focus ring
+   spilled into the line above.
+
+   HOW THIS WORKS: the link stays `inline`, so it contributes nothing beyond its
+   own text box and the paragraph's rhythm is untouched, while a transparent
+   `::after` overlay — vertically centred on the link's inline box and exactly
+   2.75rem (44px) tall, spanning the link's full inline width — carries the hit
+   area. Because the pseudo-element belongs to the anchor, a press anywhere in
+   that 44px band activates the link. It is painted-empty and positioned, so it
+   wins hit-testing over the surrounding non-positioned prose text without
+   covering any other interactive control (the disclosure paragraphs that use
+   this are plain prose). The link's own focus ring stays tight around the text,
+   which is the visually correct result for a word inside a sentence.
+
+   HOW TO MEASURE IT (the anchor's own rect is deliberately text-sized, so a
+   plain getBoundingClientRect() understates the target): read
+   `getComputedStyle(link, '::after').height` — it is `44px` — or hit-test with
+   `document.elementFromPoint(x, linkCentreY ± 18)`, which resolves to the link.
+
+   Pair it with `whitespace-nowrap` so the link cannot split across two lines; a
+   fragmented inline would leave the overlay tracking only the first fragment. */
+@utility tap-target-44 {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 50%;
+    height: 2.75rem;
+    margin-block-start: -1.375rem;
+  }
+}
+
 /**
  * Third-party overrides — Swiper pagination touch targets (M12).
  *
@@ -307,9 +350,22 @@
  * Registered in Tailwind's `base` layer so utility classes always win.
  */
 @layer base {
-  /* Smooth in-page navigation (anchor jumps, scroll-to-top). */
+  /* Smooth in-page navigation (anchor jumps, scroll-to-top).
+     `scroll-padding-top` keeps the sticky header from swallowing whatever the
+     browser scrolls to. Without it every scroll-into-view aligned its target
+     flush with the top of the scrollport — i.e. underneath the header, which is
+     a constant 65px tall and `sticky top-0 z-50`: a fragment navigation to
+     `/contact#contact-form-heading` left 27.5 of the heading's 28px hidden, and
+     the focus move onto ContactForm's `role="status"` result panel hid 65 of its
+     108px including the whole of its "Your message is ready to send" `<h3>`.
+     This is deliberately declared once here, on the scroll container, rather
+     than as a `scroll-mt-*` utility per target: it covers hash links, the skip
+     link and every programmatic `focus()`/`scrollIntoView()` in the app, and it
+     cannot be forgotten by a future in-page anchor. The extra 0.5rem leaves the
+     target visibly clear of the header edge rather than touching it. */
   html {
     scroll-behavior: smooth;
+    scroll-padding-top: calc(var(--header-height) + 0.5rem);
   }
 
   /* Document defaults: reset margin, full-height canvas, brand surface/text,
@@ -388,6 +444,14 @@
   :root {
     --cta-sticky-height: 4rem;
     --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+    /* Sticky-header height, the offset anything scrolled into view has to clear.
+       65px measured: Navbar's 64px (`h-16`) row plus the 1px `border-b` hairline
+       that lives in the bar's BASE classes — deliberately not in its scroll
+       state — so the header is exactly this tall at every scroll position and on
+       every route, which is what makes a single constant correct here. Consumed
+       by `html { scroll-padding-top }` above; keep the two in lock-step if the
+       nav row's height ever changes. */
+    --header-height: 4.0625rem;
   }
 
   /* Route-change / skip-link focus target. The `<main id="main">` landmark

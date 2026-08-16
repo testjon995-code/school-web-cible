@@ -3,11 +3,11 @@ import { siteConfig } from '../../data/siteConfig.js'
 import { cn } from '../../lib/cn.js'
 
 /**
- * FloatingWhatsApp — the persistent, always-visible WhatsApp floating action
- * button (FAB) for the CIBLE School of Language SPA (AAP §0.6.1 Group 8;
- * folder-requirement C, file #1). It fulfils the AAP conversion rule "Display
- * WhatsApp and Call actions prominently on mobile" by anchoring a one-tap
- * WhatsApp chat link to the bottom-right corner of every page.
+ * FloatingWhatsApp — the persistent WhatsApp floating action button (FAB) for
+ * the CIBLE School of Language SPA (AAP §0.6.1 Group 8; folder-requirement C,
+ * file #1). It anchors a one-tap WhatsApp chat link to the bottom-right corner
+ * of every page from the `lg` breakpoint upward, where it is one of only two
+ * persistent conversion affordances on screen.
  *
  * It is rendered by src/components/layout/Layout.jsx alongside <FloatingCall />
  * and the mobile <StickyBottomCTA /> bar. It takes NO props and renders with no
@@ -19,19 +19,38 @@ import { cn } from '../../lib/cn.js'
  * semantics (target="_blank" + rel="noopener noreferrer") mirror the shared
  * Button primitive's behaviour for http(s) URLs.
  *
+ * Visibility — `lg` AND UP, complementary to the mobile bar (closes the measured
+ * content-obstruction defect; keep this reasoning with the code):
+ *   • `hidden lg:flex`. Below `lg` the `lg:hidden` StickyBottomCTA bar already
+ *     surfaces Call, WhatsApp and Admission as three 44px targets pinned to the
+ *     thumb zone, so the project rule "display WhatsApp and Call actions
+ *     prominently on mobile" is met there by ONE affordance instead of two.
+ *   • Rendering both put a 56px circle inside the content column at phone
+ *     widths: `Container`'s gutter is 16px (`px-4`), so a `right-4` FAB spans the
+ *     column's own last 56px and could only ever sit ON page content. Measured at
+ *     390px it covered the hero WhatsApp CTA across that CTA's full 44px height
+ *     (2464px²) and `elementFromPoint` at the overlap returned THIS button — a tap
+ *     on the visible green CTA dialled the phone instead; at 320px the sibling hid
+ *     the word "in" in the hero lead paragraph, and on /contact it covered the
+ *     full height of the form's "Send via WhatsApp" submit button.
+ *   • Nothing is withdrawn: WhatsApp stays one tap away at EVERY width — from the
+ *     bar below `lg`, from this FAB at `lg` and above — and both read the same
+ *     `siteConfig.whatsappHref` target, so the two never disagree. The pair is
+ *     mutually exclusive by breakpoint, which is also why no scroll/resize
+ *     observer is needed to police the FAB's position.
+ *
  * Positioning / non-overlap contract (VALIDATION-CRITICAL — must stay in sync
  * with FloatingCall and StickyBottomCTA):
- *   • This FAB is the BOTTOM-MOST of the two floating buttons.
- *   • Mobile (< lg): `bottom-24` (96px) clears the ~60–64px-tall StickyBottomCTA
- *     bar (which is `lg:hidden` and pinned to `bottom-0`) with margin to spare.
- *   • Desktop (≥ lg): `lg:bottom-6` (24px) — the sticky bar is hidden at `lg`,
- *     so the FAB drops to the normal corner offset.
- *   • Right gutter: `right-4` (16px) mobile / `lg:right-6` (24px) desktop.
+ *   • This FAB is the BOTTOM-MOST of the two floating buttons: `bottom-6` (24px),
+ *     with FloatingCall directly above at `bottom-28` (112px → 112–168px for a
+ *     56px button), leaving a 32px gap so the two never overlap. The sticky bar
+ *     is not on screen at these widths, so no bar clearance is needed.
+ *   • Right gutter: `right-6` (24px).
  *   • `z-40` keeps it above page content but below a typical `z-50` nav drawer.
  *   • SIZING LOCK-STEP: this FAB is `h-14 w-14` (56px). The sibling FloatingCall
- *     sits directly above at `bottom-44` (mobile) / `lg:bottom-28` (desktop) and
- *     shares the same 56px size. Changing this size REQUIRES updating the
- *     sibling's offset (see FloatingCall.jsx) to preserve the non-overlap gap.
+ *     shares that size and its `bottom-28` offset is derived from it, so changing
+ *     this size REQUIRES updating the sibling's offset (see FloatingCall.jsx) to
+ *     preserve the non-overlap gap.
  *
  * Accessibility (WCAG AA):
  *   • Icon-only control → `aria-label` supplies the accessible name; the
@@ -74,8 +93,8 @@ function FloatingWhatsApp() {
       rel="noopener noreferrer"
       aria-label="Chat with CIBLE on WhatsApp"
       className={cn(
-        'fixed bottom-24 right-4 z-40 lg:bottom-6 lg:right-6',
-        'flex h-14 w-14 items-center justify-center rounded-full',
+        'fixed bottom-6 right-6 z-40',
+        'hidden h-14 w-14 items-center justify-center rounded-full lg:flex',
         'bg-accent-600 text-white shadow-float transition-colors duration-200 hover:bg-accent-700',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2',
       )}

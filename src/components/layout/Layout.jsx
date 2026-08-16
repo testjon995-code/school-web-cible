@@ -25,7 +25,11 @@ import Spinner from '../ui/Spinner.jsx'
  *   • Groups the always-available conversion widgets — FloatingWhatsApp,
  *     FloatingCall and the mobile StickyBottomCTA — inside a single labelled
  *     complementary `<aside>` landmark, mounted on every route so Call &
- *     WhatsApp are reachable everywhere, prominently on mobile.
+ *     WhatsApp are reachable everywhere, prominently on mobile. The three are
+ *     complementary by breakpoint, not stacked: the bar renders below `lg`
+ *     (`lg:hidden`) and the two FABs from `lg` up (`hidden lg:flex`), so exactly
+ *     one mechanism is on screen at any width and no fixed 56px circle lands in
+ *     the phone content column (see each widget's own visibility contract).
  *   • Restores scroll to the top on every client-side navigation via
  *     `<ScrollToTop/>` (which renders `null`).
  *   • Manages route-change focus: moves keyboard focus into `<main>` and
@@ -213,7 +217,8 @@ function Layout() {
           The <aside> is statically positioned (no transform/filter/z-index), so
           it creates no stacking context: each child stays self-positioned
           (fixed) at z-40 and the mobile drawer (z-50) still paints above them.
-          StickyBottomCTA auto-hides at lg. */}
+          StickyBottomCTA is the affordance below lg (it auto-hides at lg); the
+          two FABs are the affordance from lg up (they are hidden below it). */}
       <aside aria-label="Quick contact actions">
         <FloatingWhatsApp />
         <FloatingCall />

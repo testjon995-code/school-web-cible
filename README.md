@@ -127,8 +127,11 @@ vite.config.js     react() + tailwindcss() plugins
 ## Pages
 
 The application ships 17 content pages plus a catch-all 404, all lazy-loaded under a
-shared layout shell (navbar, footer, floating WhatsApp/Call widgets, and a mobile
-sticky CTA bar):
+shared layout shell (navbar, footer, a mobile sticky CTA bar with Call / WhatsApp /
+Admission, and — from the `lg` breakpoint up, where that bar is hidden — floating
+WhatsApp and Call buttons). The bar and the floating buttons are complementary by
+breakpoint rather than stacked, so Call and WhatsApp are always one tap away
+without a fixed control sitting on top of page content at phone widths:
 
 1. **Home** — hero, featured courses, animated statistics, testimonials, faculty
    preview, and an admission call-to-action.

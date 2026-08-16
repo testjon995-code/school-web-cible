@@ -19,6 +19,18 @@ import Button from '../ui/Button.jsx'
  * at `>= lg` (laptop / desktop), where the persistent floating action buttons
  * alone carry the CTAs.
  *
+ * The reverse is equally load-bearing: below `lg` THIS BAR IS THE ONLY fixed
+ * conversion affordance, because FloatingWhatsApp and FloatingCall are
+ * `hidden lg:flex`. The two mechanisms are complementary by breakpoint rather
+ * than stacked, so exactly one of them is on screen at any width. That is what
+ * keeps a fixed 56px circle out of the phone content column, where the page
+ * gutter is only 16px and the circles were measured covering hero CTAs, hero
+ * prose and the contact form's submit button. Every action below stays a 44px
+ * target in the thumb zone, so the project rule "display WhatsApp and Call
+ * actions prominently on mobile" is satisfied here — and satisfied ONCE, as the
+ * never-duplicate rule requires. Removing `lg:hidden`, or restoring the FABs
+ * below `lg`, reintroduces both the duplication and the obstruction.
+ *
  * Reuse-first: all three actions are composed from the single canonical
  * `Button` primitive (../ui/Button.jsx) — never a raw, re-styled anchor or
  * link. `Button` is polymorphic, so each action renders the correct semantic
@@ -43,9 +55,8 @@ import Button from '../ui/Button.jsx'
  * WCAG touch-target guideline, with `px-2 text-sm` overrides (merged LAST by
  * Button's internal `cn`, so they win over the default `px-6 text-base`) so the
  * "WhatsApp" / "Admission" labels fit three-up without wrapping down to ~320px.
- * The bar sits at `z-40` — the same layer as the floating buttons, which are
- * deliberately offset above it (bottom-24 / bottom-44) and therefore never
- * overlap it.
+ * The bar sits at `z-40` — the same layer as the floating buttons, which cannot
+ * overlap it because they only render from `lg` up, where this bar is hidden.
  *
  * Accessibility (WCAG AA): every action carries a visible text label, which is
  * its accessible name, so the leading icons are purely decorative and marked
