@@ -133,8 +133,14 @@ WhatsApp and Call buttons). The bar and the floating buttons are complementary b
 breakpoint rather than stacked, so Call and WhatsApp are always one tap away
 without a fixed control sitting on top of page content at phone widths:
 
-1. **Home** — hero, featured courses, animated statistics, testimonials, faculty
-   preview, and an admission call-to-action.
+1. **Home** — an eleven-band conversion funnel: hero, trust/proof, courses, why
+   choose CIBLE, learning journey, faculty/mentors, student success, animated
+   statistics, testimonials, events/content, and a closing admission
+   call-to-action. Statistics land after the value story rather than above it,
+   and every band is composed from the existing primitives — no new component
+   was added for any of them. The student-success and events bands surface the
+   same **representative** records as their dedicated pages and carry the in-app
+   demo-content notice (see [Limitations](#limitations)).
 2. **About** — the institute's story, mission, values, and milestones.
 3. **Courses** — the full course catalog.
 4. **Spoken English** — the flagship Spoken English program.
