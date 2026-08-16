@@ -28,9 +28,12 @@
  *
  * Accessibility (WCAG AA): exactly one `<h1>` (the page header); every section
  * title is a semantic `<h2>`; the contact email and the Privacy Policy
- * reference are real links. All styling flows through the Tailwind `@theme`
- * brand tokens defined in `src/index.css` on the 8px spacing scale — there are
- * no hardcoded values.
+ * reference are real links, and the contact address is sized to the site's 44px
+ * minimum hit area (M12) so it is comfortably tappable. All styling flows
+ * through the Tailwind `@theme` brand tokens defined in `src/index.css` on the
+ * 8px spacing scale — radius included, so surfaces use the declared
+ * `--radius-lg`/`--radius-2xl` steps rather than Tailwind's stock scale — with
+ * no hardcoded or arbitrary values.
  */
 import { Link } from 'react-router-dom'
 import Seo from '../components/seo/Seo.jsx'
@@ -107,7 +110,7 @@ function Terms() {
       <Container as="section" className="max-w-3xl pb-16 md:pb-20">
         {/* Draft / pending-approval disclosure (M09). No effective date is
             asserted until these terms are reviewed by counsel and published. */}
-        <div role="note" className="rounded-xl border border-border bg-secondary-50 p-4">
+        <div role="note" className="rounded-lg border border-border bg-secondary-50 p-4">
           <p className="text-sm leading-relaxed text-foreground">
             <strong className="font-semibold">Draft for review.</strong> These Terms &amp; Conditions are a
             representative pre-launch draft. They have not yet been reviewed by legal counsel or approved by CIBLE
@@ -139,7 +142,45 @@ function Terms() {
         <h2 className="mt-8 mb-3 text-xl font-semibold text-foreground md:text-2xl">Contact Us</h2>
         <p className="text-muted leading-relaxed">
           For questions about these Terms &amp; Conditions, contact us at{' '}
-          <a href={siteConfig.emailHref} className="font-medium text-primary-600 hover:underline">{siteConfig.email}</a>.
+          {/* Contact deep-link carries a 44px min hit area (M12), matching the
+              treatment Footer's <address> links and the Privacy Policy's contact
+              address already use: `inline-flex` keeps the anchor inline-level,
+              `min-h-11` (11 x 0.25rem = 44px on the 8px scale) grows the tap
+              target, and `items-center` re-centres the label inside that taller
+              box. No arbitrary value is involved — `min-h-11` is a declared step.
+
+              The `whitespace-nowrap` wrapper is the same guard the Privacy Policy
+              page carries, and it is deliberate rather than decorative. Giving the
+              anchor `inline-flex` makes it an ATOMIC inline-level box, and CSS
+              allows a soft-wrap opportunity immediately after such a box — so the
+              trailing full stop can break onto a line of its own. (As plain
+              `inline` text the address and the full stop were a single unbreakable
+              run, since UAX #14 permits no break before FULL STOP.) Keeping both
+              inside one nowrap context restores that unbreakable pairing.
+
+              Measured honestly: on the Privacy Policy page that orphan is ACTIVE —
+              its longer sentence leaves only ~2px after the address, and the period
+              did drop to its own line at 414/768/1024/1280/1440px before the
+              wrapper. On THIS page the hazard is currently LATENT: the shorter
+              sentence leaves 85–105px of slack, so the period stays put at all
+              eight verified widths (320→1440) with or without the wrapper. It is
+              kept for parity and as insurance — the copy above is an unapproved
+              draft pending legal review, so this sentence is expected to change,
+              and any lengthening (or a font-metric shift) makes the wrapper
+              load-bearing exactly as it already is on the sibling page.
+
+              The space before the anchor stays OUTSIDE the wrapper so the pair can
+              still move to the next line together at narrow widths — verified: at
+              320px and 360px the address and period wrap down as one unit. */}
+          <span className="whitespace-nowrap">
+            <a
+              href={siteConfig.emailHref}
+              className="inline-flex min-h-11 items-center font-medium text-primary-600 hover:underline"
+            >
+              {siteConfig.email}
+            </a>
+            .
+          </span>
         </p>
       </Container>
 

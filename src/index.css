@@ -346,6 +346,64 @@
 }
 
 /**
+ * Third-party overrides — Swiper equal-height slides.
+ *
+ * OVERRIDES: `.swiper-slide { height: 100% }`, which Swiper declares un-layered.
+ *
+ * CLOSES: cards of different heights in the same row. Measured in-browser at
+ * 1440x900 before this rule: the six testimonial slides read
+ * 307.75 / 330.5 / 307.75 / 330.5 / 307.75 / 330.5 px — a 22.75px spread, which is
+ * exactly one line of `text-sm leading-relaxed` quote text (the quotes wrap to
+ * 5/6/5/6/5/6 lines). Each `<figure>` measured identical to its own slide, proving
+ * every slide was shrink-wrapping its own card and nothing was being stretched.
+ *
+ * WHY `height: auto` IS THE WHOLE FIX: flexbox stretches an item only when its
+ * COMPUTED cross-size property is `auto` (CSS Flexible Box Layout §9.4, step 15).
+ * A percentage computes to itself, so Swiper's `height: 100%` suppressed stretch
+ * outright — and because the percentage then resolved against an indefinite
+ * containing block it also behaved as content height, which is why the slides
+ * shrank instead of filling the row. Returning the slide to `auto` re-enables
+ * stretch, and `.swiper-wrapper` is a `nowrap` flex container, so ALL slides share
+ * ONE flex line and every card matches the tallest at every `slidesPerView` —
+ * including 1-up mobile, where it additionally stops the slider's height jumping
+ * on each slide change (measured 376 / 380 / 353.3 / 376 at 320px before). The
+ * card's own `h-full` then finally resolves against a definite parent height, so
+ * short and long quotes share one author-block baseline. `align-items: stretch` is
+ * stated explicitly rather than left to `normal`'s equivalent flex behaviour, so
+ * the intent is legible and so `.swiper-autoheight .swiper-wrapper`'s
+ * `flex-start` can never silently take over if a caller ever enables `autoHeight`.
+ *
+ * WHY UN-LAYERED, AND WHY THIS IS THE ONLY OPTION: a `h-auto` utility class was
+ * previously present on every `<SwiperSlide>` in `TestimonialSlider.jsx` and was
+ * completely inert — the same failure as the `pb-12` above, for the same reason:
+ * Tailwind emits utilities inside `@layer utilities` and un-layered declarations
+ * win regardless of specificity. `@utility` would not help either, since it also
+ * compiles into that layer. The alternatives — `!important` or an inline `style` —
+ * are both barred by this project's styling rules, so the override zone is the one
+ * remaining place the declaration can live. That inert class has been deleted from
+ * the component rather than reworded, and this rule is now the single owner of
+ * slide height.
+ *
+ * WHY A DESCENDANT SELECTOR RATHER THAN A DOUBLED CLASS: `.swiper .swiper-slide`
+ * scores one notch above Swiper's single-class `.swiper-slide`, so it wins on
+ * specificity outright and never falls through to the source-order tiebreak that
+ * forced `.swiper.swiper` above — the same guarantee the bullet rule relies on.
+ *
+ * SAFE FOR SLIDE ARITHMETIC: Swiper measures the MAIN axis (width, for a
+ * horizontal slider) when it sizes and positions slides, so changing the cross
+ * axis cannot affect snap points, `slidesPerView` or the translate. Applies to
+ * every carousel (TestimonialSlider, Gallery); Gallery's slides all share the
+ * `aspect-4-3` frame, so they were already equal and stay equal.
+ */
+.swiper .swiper-wrapper {
+  align-items: stretch;
+}
+
+.swiper .swiper-slide {
+  height: auto;
+}
+
+/**
  * Base layer — global element defaults and accessibility helpers.
  * Registered in Tailwind's `base` layer so utility classes always win.
  */
