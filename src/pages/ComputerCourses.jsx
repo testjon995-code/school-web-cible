@@ -134,7 +134,7 @@ function ComputerCourses() {
           <CourseGrid
             items={computerCourses}
             ctaTo={(c) => `/admission?course=${encodeURIComponent(c.title)}`}
-            ctaLabel="Apply now"
+            ctaLabel="Apply Now"
           />
         </div>
       </Container>

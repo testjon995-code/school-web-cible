@@ -32,12 +32,31 @@
  * - `<SectionHeading as="h1">` — the page's ONE `<h1>`.
  * - `<FeatureCard>`    — the four track benefits ("What You'll Gain").
  * - `<CourseGrid>`     — the five English-category courses from the `courses`
- *                        data module (single source of truth).
+ *                        data module (single source of truth). Its cards drive
+ *                        admission instead of self-linking: every card is
+ *                        labelled "Apply Now" and targets
+ *                        `/admission?course=<encodeURIComponent(title)>`, which
+ *                        `Admission.jsx` matches back against the catalogue by
+ *                        exact TITLE to preselect that course in the admission
+ *                        form's "Course of Interest" field — so the title is a
+ *                        frozen contract, not free text. The same label composes
+ *                        each card's accessible name ("Apply Now — Spoken
+ *                        English"), naming the course a repeated CTA applies to.
  * - `<CTASection>`     — the reusable admission call-to-action that closes every
- *                        page, offering the four conversion channels (admission /
- *                        advisor / WhatsApp / call). It owns its own button
- *                        wording, so this page passes no labels and none are
- *                        quoted here; see that component for the current copy.
+ *                        page. It offers four conversion channels (admission /
+ *                        advisor / WhatsApp / call) ranked into THREE deliberate
+ *                        emphasis tiers rather than four equally weighted
+ *                        controls: one dominant admission action, two supporting
+ *                        contact channels, and one low-emphasis `tertiary` call.
+ *                        The tiers step down by size and fill, never by colour
+ *                        alone, and each still clears the 44px touch-target
+ *                        floor, so demoting a control never shrinks its hit
+ *                        area. That component is the single authority for the
+ *                        four button labels — all 18 consumers render it on its
+ *                        defaults, so this page passes none and quotes none here
+ *                        (a quoted label would go stale in 18 files the moment
+ *                        the shared copy changed); its own tier table records the
+ *                        exact wording.
  *
  * Accessibility (WCAG AA): exactly one `<h1>` (the header SectionHeading); every
  * other section heading is an `<h2>`; the benefit tiles and course cards use
@@ -130,7 +149,7 @@ function SpokenEnglish() {
           <CourseGrid
             items={englishCourses}
             ctaTo={(c) => `/admission?course=${encodeURIComponent(c.title)}`}
-            ctaLabel="Apply now"
+            ctaLabel="Apply Now"
           />
         </div>
       </Container>

@@ -137,7 +137,7 @@ function ScienceCoaching() {
           <CourseGrid
             items={scienceCourses}
             ctaTo={(c) => `/admission?course=${encodeURIComponent(c.title)}`}
-            ctaLabel="Apply now"
+            ctaLabel="Apply Now"
           />
         </div>
       </Container>

@@ -30,15 +30,29 @@
  *                        the exact `{ name, path }` shape passed to
  *                        `<StructuredData>`.
  * - `<SectionHeading as="h1">` — the page's ONE `<h1>`.
+ * - `<RepresentativeNote>` — the ONE canonical point-of-claim disclosure, gated
+ *                        site-wide by `siteConfig.representativeContent`. Its
+ *                        copy must name every course field the cards actually
+ *                        display, so it is revised whenever `CourseCard` starts
+ *                        surfacing a new one (content integrity, AAP §0.2.4).
  * - `<CourseGrid showFilter>` — the shared responsive grid; it owns the
  *                        category-filter state internally (via `useState`), so
  *                        this page stays hook-free and purely presentational —
- *                        it passes the `courses` data only.
+ *                        it passes the `courses` data only. It is deliberately
+ *                        given NO `ctaLabel`/`ctaTo`: this is the one view that
+ *                        lists all four categories at once, so every card
+ *                        resolves its own category route and the destinations
+ *                        are MIXED. No single catalog-wide label is truthful for
+ *                        all of them, so each card keeps `CourseCard`'s neutral
+ *                        "Learn more" default (see the note beside the grid).
  * - `<CTASection>`     — the reusable admission call-to-action that closes every
  *                        page, offering the four conversion channels (admission /
- *                        advisor / WhatsApp / call). It owns its own button
- *                        wording, so this page passes no labels and none are
- *                        quoted here; see that component for the current copy.
+ *                        advisor / WhatsApp / call) ranked into THREE emphasis
+ *                        tiers rather than four equally weighted controls, so the
+ *                        admission action reads as the dominant one. It owns both
+ *                        that ranking and its own button wording, so this page
+ *                        passes no labels and none are quoted here; see that
+ *                        component for the current copy and its tier table.
  *
  * Accessibility (WCAG AA): exactly one `<h1>` (the section heading). The grid's
  * filter chips are keyboard-accessible `<button>`s with `aria-pressed` (owned by
@@ -107,11 +121,27 @@ function Courses() {
             title is an <h3>) nests under an <h2>, keeping the outline
             h1 -> h2 -> h3 with no skipped level for assistive tech (QA Issue 9). */}
         <h2 className="sr-only">All courses</h2>
+        {/* The disclosure names each field the cards below actually render, so
+            it stays true to what the visitor can see: `CourseCard` surfaces
+            `level`, `duration`, `eligibility`, `suitableFor`, `prerequisites`
+            and `highlights`, and every one of those is representative sample
+            copy per the header of src/data/courses.js. Extend this sentence
+            whenever the card begins surfacing another field (AAP §0.2.4). */}
         <RepresentativeNote className="mb-8">
-          Course details such as durations and highlights are representative and
-          shown for demonstration. Please confirm the current curriculum, batch
-          timings and fees with the institute before enrolling.
+          Course details shown on these cards — the duration, level, eligibility,
+          who each course suits, any prerequisites and the listed highlights —
+          are representative and shown for demonstration. Please confirm the
+          current curriculum, entry requirements, batch timings and fees with the
+          institute before enrolling.
         </RepresentativeNote>
+        {/* No `ctaLabel` / `ctaTo` here BY DESIGN — see the <CourseGrid> entry in
+            the file header for the full reasoning. In short: this catalog mixes
+            destinations per category (English/Science/Computer cards open their
+            track page, Career opens /admission), so every card keeps
+            `CourseCard`'s neutral "Learn more" default. A single catalog-wide
+            label such as "Apply now" would be untrue for most of these cards —
+            the track pages may use it only because they ALSO pass `ctaTo` to
+            force every card to /admission. Please do not add one here. */}
         <CourseGrid items={courses} showFilter />
       </Container>
 
