@@ -43,9 +43,12 @@ import testimonials from '../../data/testimonials.js'
  * Tailwind utility class on this component can override a Swiper base rule.
  *
  * That is not theoretical. Two utilities on this file were provably inert:
- *   • `pb-12` on the <Swiper> root computed to `padding-bottom: 0px`, because
- *     `swiper.css` declares `.swiper { padding: 0 }` un-layered — so the
- *     absolutely-positioned pagination band sat ON TOP of the cards.
+ *   • The 12-step bottom-padding utility on the <Swiper> root (spelled out rather
+ *     than written as a class token, because Tailwind v4 scans raw source text —
+ *     comments included — and would otherwise emit a rule no element uses)
+ *     computed to `padding-bottom: 0px`, because `swiper.css` declares
+ *     `.swiper { padding: 0 }` un-layered — so the absolutely-positioned
+ *     pagination band sat ON TOP of the cards.
  *   • `h-auto` on each <SwiperSlide> was equally inert against un-layered
  *     `.swiper-slide { height: 100% }`, so slides never shrank to content and
  *     never stretched to a shared height either.
@@ -60,23 +63,35 @@ import testimonials from '../../data/testimonials.js'
  *
  * What the stylesheet supplies, and what this component relies on:
  *   • `.swiper.swiper { padding-inline: .5rem; padding-block-end: 1rem }` —
- *     reserves the pagination band (replacing the inert `pb-12`) AND insets the
- *     slide row so <Card>'s `shadow-md` hover bleed is no longer clipped by
- *     Swiper's `overflow: hidden`, which is deliberately left in place because
- *     unclipping it would let off-screen slides reintroduce horizontal page
- *     overflow.
- *   • `.swiper > .swiper-pagination { position: static; margin-block-start: 1rem }`
- *     — returns Swiper's OWN pagination element to normal flow so the bullets
- *     render BELOW the cards. Overlap becomes structurally impossible instead of
- *     merely arithmetically avoided. This is why `pagination.el` is deliberately
- *     NOT supplied here: the placement rule is scoped to a DIRECT child of
- *     `.swiper`, the ~26px bullet tap-target rule is scoped to a DESCENDANT of
- *     `.swiper`, and the brand-colour custom properties reach the bullets by
- *     inheritance from `.swiper`. Relocating the element outside the slider root
- *     would silently break all three.
+ *     insets the slide row so <Card>'s `shadow-md` hover bleed is no longer
+ *     clipped by Swiper's `overflow: hidden`, which is deliberately left in place
+ *     because unclipping it would let off-screen slides reintroduce horizontal
+ *     page overflow. The block-end step is what contains that shadow's 14px tail —
+ *     its deepest extent — and it is also the reservation the in-slider pagination
+ *     band needs on the carousels that keep one (Gallery); it replaces the inert
+ *     bottom-padding utility this root used to carry in both roles. (That utility
+ *     is described rather than named here on purpose: Tailwind v4 scans raw source
+ *     text for candidates, so writing the class token in prose would make the
+ *     compiler emit a rule for a class nothing renders.)
+ *   • `.swiper-pagination.swiper-pagination { position: static }` — takes Swiper's
+ *     pagination element out of its absolute `bottom: 8px` / `z-index: 10` float
+ *     and returns it to normal flow, so overlap with card content becomes
+ *     structurally impossible instead of merely arithmetically avoided. This
+ *     component supplies `pagination.el` (see the control cluster below), which
+ *     hands Swiper an element inside the cluster INSTEAD of one inside `.swiper` —
+ *     and that is exactly why the reset has to be selector-scoped to the element
+ *     rather than to a child of the slider: the sibling rule
+ *     `.swiper > .swiper-pagination` covers the in-slider default that Gallery
+ *     still uses, and cannot reach this one. The bullet tap-target rule is
+ *     likewise declared for BOTH positions, as is the non-colour CURRENT-slide cue
+ *     that grows the active dot, and the brand colour variables are declared on
+ *     `.swiper-pagination` as well as `.swiper` — so relocating the band costs it
+ *     none of its geometry, tap area, state cue or colour.
  *   • `.swiper, .swiper-button-prev, .swiper-button-next, .swiper-pagination { --swiper-*: … }`
  *     — repoints Swiper's control colours at `--color-primary-600` and lifts the
- *     inactive bullet to ≈3.59:1 (WCAG 1.4.11). No colour is set here.
+ *     inactive bullet to ≈3.59:1 (WCAG 1.4.11). No colour is set here. The
+ *     `.swiper-pagination` selector in that list is what carries the brand colour
+ *     to the relocated band, which inherits nothing from `.swiper` any more.
  *   • `.swiper .swiper-wrapper { align-items: stretch }` +
  *     `.swiper .swiper-slide { height: auto }` — the equal-height chain, owned
  *     ENTIRELY by the stylesheet. Flexbox only stretches an item whose COMPUTED
@@ -106,15 +121,18 @@ import testimonials from '../../data/testimonials.js'
  * motion; slide changes then happen only through the user's own actions (arrows,
  * pagination, drag/swipe), which is acceptable.
  *
- * ONE CONTROL CLUSTER: every control this carousel exposes lives in a single
- * zone directly beneath the slides — Swiper's in-flow pagination band first, then
- * one row holding the previous arrow, the next arrow and the Play/Pause toggle.
- * That single structural decision replaces three separate control locations (a
- * toggle floated above the slider, arrows overlaid at `top: 50%` on top of the
- * card text, and a pagination band painted over the last line of every card) and
- * resolves five reported symptoms at once: arrows overlapping content, arrow
- * positioning, arrows hard to tap on mobile, pagination mispositioned, and
- * controls behaving inconsistently.
+ * ONE CONTROL CLUSTER: every control this carousel exposes lives inside ONE
+ * container element directly beneath the slides — the pagination band on the first
+ * row, then the previous arrow, the next arrow and the Play/Pause toggle on the
+ * second. One DOM parent, not merely one screen region: the pagination element is
+ * handed to Swiper through `pagination.el` rather than left inside `.swiper`, so a
+ * reader of the markup, an assistive-technology user walking the tree and a
+ * developer changing the layout all see the same single group. That structural
+ * decision replaces three separate control locations (a toggle floated above the
+ * slider, arrows overlaid at `top: 50%` on top of the card text, and a pagination
+ * band painted over the last line of every card) and resolves five reported
+ * symptoms at once: arrows overlapping content, arrow positioning, arrows hard to
+ * tap on mobile, pagination mispositioned, and controls behaving inconsistently.
  *
  * The arrows escape Swiper's absolute overlay because `navigation` receives
  * explicit `prevEl` / `nextEl` ELEMENTS instead of the bare `navigation` boolean.
@@ -146,44 +164,82 @@ import testimonials from '../../data/testimonials.js'
  * via a ref to the instance. It carries `aria-pressed` so the state is exposed
  * programmatically, not by the label text alone, and the visible label flips
  * ("Pause autoplay" ↔ "Play autoplay") so the available action is always
- * unambiguous. `pauseOnMouseEnter` additionally pauses rotation on hover (with
- * `disableOnInteraction: false` so a swipe never silently kills it). Under
- * reduced motion nothing auto-moves, so the toggle is intentionally not rendered.
+ * unambiguous. Hover still pauses rotation, but this component now OWNS that
+ * behaviour rather than delegating it to Swiper (see AUTOPLAY STATE TRUTH below),
+ * and `disableOnInteraction: false` still keeps a swipe from silently killing
+ * autoplay. Under reduced motion nothing auto-moves, so the toggle is
+ * intentionally not rendered.
  *
- * AUTOPLAY STATE TRUTH (why four event props, not two). `isPlaying` drives both
- * the label and `aria-pressed`, so it must never disagree with the controller.
- * Swiper exposes two flags: `running` (the toggle's own state — only `start()`
- * and `stop()` change it) and `paused` (a TRANSIENT suspension). They are
- * reconciled as follows:
- * - All four autoplay events — `autoplayStart`, `autoplayStop`, `autoplayPause`
- *   and `autoplayResume` — resync `isPlaying` from the LIVE controller, so it
- *   cannot drift down any code path, including the `pauseOnMouseEnter` pause that
- *   emits `autoplayPause` and never emits a stop event.
- * - `togglePlay` likewise reads the live controller rather than React state, so
- *   the button's ACTION can never contradict its label even for one frame. That
- *   stale-state hole was the real defect: a toggle showing "Pause autoplay" while
- *   the controller had already been suspended would previously call `start()` on
- *   an already-running controller and do nothing at all.
- * - The raw `paused` flag is deliberately NOT surfaced in the label. With
- *   `disableOnInteraction: false`, Swiper's own `beforeTransitionStart` handler
- *   calls `pause()` at the start of EVERY slide transition and resumes on
- *   `transitionend`, so `paused` toggles twice per rotation. Rendering it would
- *   flash the label and the icon for ~300ms of every 5s cycle — misinforming the
- *   user rather than informing them — while `running` is the state the control
- *   actually owns and the only one the user can change.
+ * AUTOPLAY STATE TRUTH (why the hover pause is implemented here, not by Swiper).
+ * `isRunning` drives the label, `aria-pressed` AND the wrapper's `aria-live`, so
+ * it must never disagree with what the visitor can see happening. Swiper exposes
+ * two flags: `running` (only `start()`/`stop()` change it) and `paused` (a
+ * transient suspension). Neither one, alone, could tell the truth:
+ * - `paused` is unusable as a signal. With `disableOnInteraction: false`, Swiper's
+ *   own `beforeTransitionStart` handler calls `pause()` at the start of EVERY slide
+ *   transition and resumes on `transitionend`, so `paused` flips twice per
+ *   rotation. Measured: a ~316ms pause/resume pair on every 5s cycle. Rendering it
+ *   would flash the label and icon for ~6% of every cycle — misinforming the
+ *   visitor rather than informing them.
+ * - `running` alone was ALSO untruthful, and that was the real defect. Swiper's
+ *   `pauseOnMouseEnter` suspends rotation through the same `pause()` call, leaving
+ *   `running === true`, so the toggle went on reading "Pause autoplay" with
+ *   `aria-pressed="true"` while nothing was moving. Measured before this fix: a
+ *   67.6s hover during which ZERO slides advanced and the control never changed.
+ *   The two pause sources are indistinguishable from outside Swiper — both emit
+ *   `autoplayPause` and nothing else — because the flag that separates them
+ *   (`pausedByPointerEnter`) is a module-private closure variable.
+ * - Worse, the mismatch could not be fixed by relabelling. While Swiper's own hover
+ *   pause is in effect its `onTransitionEnd` handler refuses to resume, so a
+ *   `resume()` (or a `stop()` + `start()`) advances exactly one slide and then
+ *   freezes again. A control offering "Play autoplay" in that state could not have
+ *   honoured its own label.
+ * So `pauseOnMouseEnter` is set to `false` and this component performs the hover
+ * pause itself, through the SAME `stop()`/`start()` controls the toggle uses, from
+ * `pointerenter`/`pointerleave` listeners on the slider element (mouse pointers
+ * only, mirroring Swiper's own `pointerType` guard). Nothing is withdrawn — hover
+ * still suspends rotation and leaving still resumes it — but it now moves the one
+ * flag that is observable, so `isRunning` is exactly "the content is auto-
+ * advancing", every state the widget exposes derives from it, and only the two
+ * events that can change it (`autoplayStart`, `autoplayStop`) are subscribed. The
+ * transition-internal pause is therefore never observed at all, which is what keeps
+ * the label free of per-rotation flicker. One deliberate behavioural nuance:
+ * `stop()` resets the delay, so leaving the carousel restarts the full 5s rather
+ * than resuming the remainder — the reader gets a whole interval back, which is the
+ * kinder of the two behaviours for the audience WCAG 2.2.2 exists for.
+ * `togglePlay` still reads the LIVE controller rather than React state, so the
+ * button's ACTION can never contradict its label even for one frame, and it clears
+ * the hover latch so an explicit press always wins over a pointer that is still
+ * resting on the slider.
  *
  * Accessibility (WCAG AA):
- * - The carousel is exposed as a NAMED region: the `a11y` options set
+ * - The carousel is exposed as a NAMED CAROUSEL GROUP: the `a11y` options set
  *   `role="group"`, an `aria-label`, and `aria-roledescription="carousel"` on the
  *   slider root, and `aria-roledescription="slide"` on every slide alongside
- *   Swiper's own `role="group"` and "N / M" slide label. Those four parameters
- *   default to `null`, which is why the widget was previously unnamed and its
- *   slides undescribed (W3C WAI Carousels Tutorial).
- * - `wrapperLiveRegion` is left at its default ON PURPOSE. Swiper resolves it to
- *   `aria-live="off"` while autoplay is enabled and `"polite"` when it is not,
- *   which is exactly the WAI recommendation: an auto-rotating carousel must not
- *   announce every slide, whereas a user-driven one should. The `off` value is
- *   correct behaviour, not a defect to "fix".
+ *   Swiper's own `role="group"` and "N / M" slide label. `group` is deliberate
+ *   rather than `region`: a named `region` is a landmark, and this widget sits
+ *   inside a section that already has its own heading, so a landmark here would
+ *   only add noise to the landmark list — `group` is the role the W3C WAI
+ *   Carousels Tutorial uses for a carousel that is not itself a landmark. All four
+ *   parameters default to `null`, which is why the widget was previously unnamed
+ *   and its slides undescribed.
+ * - The slide wrapper's `aria-live` FOLLOWS the rotation state instead of being
+ *   frozen at its initial value. The WAI rule is that an auto-rotating carousel
+ *   must not announce every slide whereas a user-driven one should, and Swiper's
+ *   `wrapperLiveRegion` default implements exactly that — but only ONCE: its a11y
+ *   module writes the attribute inside `init()` and never revisits it, so the value
+ *   went stale the moment the rotation state changed. Measured in both directions:
+ *   after pressing Pause the wrapper stayed `"off"`, and a slide the visitor then
+ *   reached with the arrows was announced by nothing at all (Swiper's separate
+ *   `.swiper-notification` region was empty too); and a carousel that mounted under
+ *   reduced motion stayed `"polite"` after the visitor allowed motion again, so
+ *   every automatic rotation was announced unsolicited every ~5s, indefinitely.
+ *   Swiper never re-initialises on a prop change (the wrapper node is identical
+ *   before and after), so its `init()` can never run a second time to correct
+ *   itself. An effect therefore owns the attribute: `off` while automatic rotation
+ *   is running, `polite` whenever it is stopped or disabled. Because it is keyed on
+ *   the same `isRunning` value as the toggle, the announcement policy and the
+ *   visible control can never disagree.
  * - Both arrows and the toggle are real <button> elements (via the shared
  *   <Button>, which guarantees a ≥44×44px target through `min-h-11 min-w-11` and
  *   `h-11`), permanently in the tab order, each with the one global
@@ -201,9 +257,13 @@ import testimonials from '../../data/testimonials.js'
  *   single labelled `role="img"` — colour is never the sole indicator of meaning.
  *
  * Styling: every value resolves to a Tailwind `@theme` token / native utility
- * from `src/index.css` (`h-full`, `mt-2`, `gap-x-2`, `gap-y-4`) with zero
- * hardcoded style values and zero arbitrary bracket utilities; cluster spacing
- * composes even multiples of the 8px scale. The caller `className` is merged LAST
+ * from `src/index.css` (`h-full`, `mt-4`, `gap-4`, `gap-x-2`, `gap-y-4`,
+ * `min-w-52`) with zero hardcoded style values and zero arbitrary bracket
+ * utilities; cluster spacing composes even multiples of the 8px scale. The one
+ * non-Tailwind class in the markup is Swiper's own `swiper-pagination`, which is a
+ * third-party API hook rather than a style declaration — the band's appearance
+ * still comes entirely from the stylesheet's override zone. The caller `className`
+ * is merged LAST
  * through the shared `cn()` helper onto the component's OUTER wrapper — not onto
  * the <Swiper> root — so it can position the whole widget (slides plus controls)
  * as one block. The numeric Swiper API values (`spaceBetween`, `slidesPerView`,
@@ -220,17 +280,22 @@ import testimonials from '../../data/testimonials.js'
  * `AUTOPLAY` object and `false` AND by the explicit stop/start effect above, so no
  * prop reference is recreated per render.
  *
- * The one unavoidable exception is `navigation`, which must carry live DOM
- * elements and therefore cannot be a frozen module constant. It is safe for two
- * reasons. First, the arrow elements are held in STATE rather than in refs: the
- * control cluster is a later sibling than <Swiper>, and React attaches a later
- * sibling's refs only AFTER an earlier sibling's layout effect has run — which is
- * exactly when Swiper initialises — so a plain ref would still have been `null` at
- * init. Callback-ref setters re-render once, at mount, with the real nodes. Second,
- * Swiper's React wrapper diffs watched object params BY VALUE, not by identity, so
- * that one change re-runs `navigation.init()` alone (the active slide and the
- * autoplay controller are untouched) and every subsequent render — including every
- * ancestor re-render — sees identical values and re-initialises nothing.
+ * The two unavoidable exceptions are `navigation` and `pagination`, which must
+ * carry live DOM elements and therefore cannot be frozen module constants
+ * (`PAGINATION` still holds every static pagination option; only `el` is added per
+ * render). They are safe for two reasons. First, the control elements are held in
+ * STATE rather than in refs: the control cluster is a later sibling than <Swiper>,
+ * and React attaches a later sibling's refs only AFTER an earlier sibling's layout
+ * effect has run — which is exactly when Swiper initialises — so a plain ref would
+ * still have been `null` at init. Callback-ref setters re-render once, at mount,
+ * with the real nodes. Second, Swiper's React wrapper diffs watched object params
+ * BY VALUE, not by identity, so that one change re-runs `navigation.init()` and
+ * `pagination.init()` alone (the active slide and the autoplay controller are
+ * untouched) and every subsequent render — including every ancestor re-render —
+ * sees identical values and re-initialises nothing. Supplying `pagination.el` also
+ * stops the wrapper rendering its own band inside `.swiper`, so no second,
+ * overlapping set of bullets ever exists — the same guarantee the explicit arrow
+ * elements give.
  *
  * @param {object} props
  * @param {Array<{ name: string, role?: string, course?: string, rating: number,
@@ -289,23 +354,75 @@ const BREAKPOINTS = { 768: { slidesPerView: 2 }, 1024: { slidesPerView: 3 } }
 // Neither is worth reaching for `renderBullet` to "fix": that would make Swiper skip
 // its own bullet labelling and cost every bullet its "Go to slide N" accessible name.
 //
-// `el` is deliberately NOT set: Swiper's own pagination element must stay a DIRECT
-// CHILD of the slider root, because all three of the stylesheet rules that make the
-// band correct are scoped to that position — the static-flow placement
-// (`.swiper > .swiper-pagination`), the ~26px bullet tap target
-// (`.swiper .swiper-pagination-bullet`) and the brand colour / 3:1 inactive
-// contrast, which reaches the bullets by custom-property inheritance from
-// `.swiper`. See the cascade section of the JSDoc above.
+// `el` is deliberately NOT part of this constant: it is a live DOM node, so it is
+// merged in at render time (see the `pagination` prop below) to keep this object
+// static and its reference stable. The element it points at lives in the control
+// cluster rather than inside `.swiper`, which is what makes the cluster ONE DOM
+// group. Every stylesheet rule the band depends on is declared for that position
+// too — `.swiper-pagination.swiper-pagination { position: static }` for the
+// static-flow placement, the two-selector bullet rule for the ~26px tap target,
+// and `.swiper-pagination` in the brand-colour selector list for the ≥3:1 inactive
+// contrast — so nothing is lost by moving it out. See the cascade section of the
+// JSDoc above.
 const PAGINATION = { clickable: true, bulletElement: 'button' }
+
+// The one thing `bulletElement: 'button'` does NOT fix, and the reason this
+// handler exists. Swiper's a11y module attaches its own `keydown` listener to the
+// pagination container whenever pagination is clickable, and that listener ends by
+// calling `targetEl.click()` on the focused bullet WITHOUT calling
+// `preventDefault()` (node_modules/swiper/modules/a11y.mjs — `onEnterOrSpaceKey`).
+// With Swiper's default `<span role="button">` bullet that synthetic click is the
+// only activation path, so upstream never hits the problem. A native <button>
+// bullet has a second, built-in path — Enter activates on keydown, Space on keyup —
+// so ONE key press produced TWO clicks and drove `slideTo()` twice. Measured
+// before this handler: `clicks: 2, keydowns: 1` on both keys and on four different
+// bullets, with a real mouse click producing exactly 1; measured after: 1 click per
+// press. The duplicate was invisible on screen only because both clicks resolve to
+// the same page index — an idempotence this component must not rely on.
+//
+// Note that Swiper guards the equivalent ARROW listener behind
+// `el.tagName !== 'BUTTON'` for exactly this reason, but applies the pagination
+// listener unconditionally; the arrows in the control cluster below are therefore
+// unaffected and need no handling.
+//
+// Cancelling the NATIVE path (rather than suppressing Swiper's) is deliberate: it
+// leaves the library owning navigation — no parallel `slideTo` call, no second
+// pagination implementation — and it keeps the Space key from page-scrolling the
+// document out from under the focused bullet, which is the other half of what the
+// native <button> bought us (a measured 723px jump before it).
+//
+// Attachment is capture-phase, and it CANNOT be placed on the <Swiper> root:
+// Swiper's React wrapper routes every prop matching /on[A-Z]/ into its own event
+// map instead of onto the container element (shared/update-on-virtual-data.mjs),
+// so an `onKeyDownCapture` there would silently never fire. It goes on the outer
+// wrapper this component owns, which contains the slider, so React's capture pass
+// runs before the pagination element's own bubble listener. Hoisted to module
+// scope so the reference is stable across renders, matching every other Swiper
+// option in this file. Gallery.jsx carries the identical handler for its own
+// carousel — one shared pattern, deliberately not a shared abstraction, because
+// each component owns its own root.
+const BULLET_SELECTOR = '.swiper-pagination-bullet'
+function preventDuplicateBulletActivation(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  const target = event.target
+  if (typeof target?.matches !== 'function' || !target.matches(BULLET_SELECTOR)) return
+  event.preventDefault()
+}
+
 // Accessibility config. Swiper defaults these four parameters to `null`, which is
 // why the carousel was previously an UNNAMED, UNDESCRIBED widget: its root had no
 // role, no accessible name and no aria-roledescription, and its slides carried
 // role="group" with an "N / M" label but nothing identifying them as slides.
-// Setting them makes the slider a named region announced as a carousel whose
+// Setting them makes the slider a named GROUP announced as a carousel whose
 // children are announced as slides, which is the structure the W3C WAI Carousels
-// Tutorial asks for. `slideRole` already defaults to 'group' and
-// `wrapperLiveRegion` is left alone on purpose (see the JSDoc: Swiper correctly
-// resolves it to `off` while autoplay runs and `polite` when it does not).
+// Tutorial asks for. `containerRole` is deliberately 'group' rather than 'region':
+// a named `region` is a landmark, and this widget sits inside a section that
+// already has its own heading, so a landmark here would only add noise to the
+// landmark list. `slideRole` already defaults to 'group'. `wrapperLiveRegion`
+// stays enabled so Swiper still CREATES the attribute and gives it a correct initial
+// value, but its VALUE is owned from here on by the effect in the component below,
+// because Swiper writes it once in `init()` and never revisits it (see the
+// Accessibility section of the JSDoc for the measured consequences).
 const A11Y = {
   enabled: true,
   containerRole: 'group',
@@ -324,12 +441,20 @@ const A11Y = {
 // scrolling. Keyboard navigation is user-initiated, so it stays fully allowed
 // under prefers-reduced-motion (the reduced-motion rule only stops autoplay).
 const KEYBOARD = { enabled: true, onlyInViewport: false, pageUpDown: false }
-// Autoplay config (WCAG 2.2.2 "Pause, Stop, Hide"): `pauseOnMouseEnter` pauses
-// the rotation while a pointer is over the carousel and resumes on leave, which
-// requires `disableOnInteraction: false` so a swipe/arrow does not silently kill
-// autoplay. The explicit, keyboard-operable Play/Pause toggle below is the
-// primary, always-available mechanism to stop the automatic movement.
-const AUTOPLAY = { delay: 5000, disableOnInteraction: false, pauseOnMouseEnter: true }
+// Autoplay config (WCAG 2.2.2 "Pause, Stop, Hide"). `disableOnInteraction: false`
+// keeps a swipe or an arrow press from silently killing autoplay for the rest of the
+// session. The explicit, keyboard-operable Play/Pause toggle below is the primary,
+// always-available mechanism to stop the automatic movement.
+//
+// `pauseOnMouseEnter` is set to FALSE deliberately, and the hover pause is NOT
+// dropped with it — the component performs it itself, in `handlePointerEnter` /
+// `handlePointerLeave` below, through the same `stop()`/`start()` calls the toggle
+// uses. Swiper's own implementation suspends rotation through `pause()`, which
+// leaves `autoplay.running` true and is indistinguishable from the pause it raises
+// on every slide transition, so no truthful label, `aria-pressed` or `aria-live`
+// value could be derived while it was in charge. See AUTOPLAY STATE TRUTH in the
+// JSDoc above for the measurements behind that decision.
+const AUTOPLAY = { delay: 5000, disableOnInteraction: false, pauseOnMouseEnter: false }
 
 export default function TestimonialSlider({ items = testimonials, className, ...props }) {
   // Reactive reduced-motion (shared hook, single source of truth): re-renders
@@ -340,98 +465,207 @@ export default function TestimonialSlider({ items = testimonials, className, ...
   const reduced = useReducedMotion()
 
   // Live handle to the Swiper instance so the Play/Pause toggle — and the
-  // reduced-motion effect below — can drive its autoplay controller. Play/Pause
-  // reflects whether autoplay is currently running; it starts running only when
-  // motion is allowed. ALL hooks are declared UNCONDITIONALLY at the top level —
-  // before the early return below — so hook order is stable every render
+  // reduced-motion effect below — can drive its autoplay controller.
+  // `isRunning` mirrors the controller's `running` flag; it starts running only
+  // when motion is allowed. ALL hooks are declared UNCONDITIONALLY at the top
+  // level — before the early return below — so hook order is stable every render
   // (react/rules-of-hooks).
   const swiperRef = useRef(null)
-  const [isPlaying, setIsPlaying] = useState(!reduced)
+  // `isRunning` is the single exposed state: "the content is auto-advancing right
+  // now". It mirrors `autoplay.running`, which — with `pauseOnMouseEnter` off — only
+  // `start()`/`stop()` can change, and those are exactly the two calls the toggle,
+  // the hover handlers and the reduced-motion effect make. So it drives the toggle's
+  // label, its `aria-pressed` and the wrapper's `aria-live`, and all three agree by
+  // construction.
+  const [isRunning, setIsRunning] = useState(!reduced)
+  // Whether a mouse pointer is currently resting on the slider. A ref, not state:
+  // nothing renders from it, and `togglePlay` must read its LIVE value.
+  const pointerInsideRef = useRef(false)
+  // Latch: true only when the hover handler is what stopped autoplay, so leaving
+  // restarts it while an autoplay the visitor stopped on purpose — or one disabled by
+  // reduced motion — stays stopped. Any explicit toggle press clears it, so a
+  // deliberate choice always outranks a pointer that never moved.
+  const resumeOnPointerLeaveRef = useRef(false)
 
-  // The previous/next arrow ELEMENTS, handed to Swiper's `navigation` option so
-  // the arrows render inside the control cluster below instead of Swiper's
-  // absolutely-positioned overlay. Held in STATE, not in a ref, on purpose: the
-  // cluster is a LATER SIBLING than <Swiper>, and React attaches a later
-  // sibling's refs only after an earlier sibling's layout effect has already run
-  // — which is precisely when Swiper's React wrapper initialises the instance —
-  // so a plain ref would still read `null` at init and the arrows would never be
-  // wired. These callback-ref setters trigger exactly one extra render at mount
-  // with the real nodes, and Swiper's wrapper then re-runs `navigation.init()`
-  // alone (the active slide and the autoplay controller are left untouched).
-  // Every render after that passes identical values, and because the wrapper
-  // diffs watched object params by VALUE rather than by identity, nothing is
-  // re-initialised again — the same guarantee the hoisted constants above give.
+  // The previous/next arrow and pagination ELEMENTS, handed to Swiper's
+  // `navigation` and `pagination` options so all three render inside the control
+  // cluster below instead of Swiper's absolutely-positioned overlays. Held in
+  // STATE, not in refs, on purpose: the cluster is a LATER SIBLING than <Swiper>,
+  // and React attaches a later sibling's refs only after an earlier sibling's
+  // layout effect has already run — which is precisely when Swiper's React wrapper
+  // initialises the instance — so a plain ref would still read `null` at init and
+  // the controls would never be wired. These callback-ref setters trigger exactly
+  // one extra render at mount with the real nodes, and Swiper's wrapper then
+  // re-runs `navigation.init()` / `pagination.init()` alone (the active slide and
+  // the autoplay controller are left untouched). Every render after that passes
+  // identical values, and because the wrapper diffs watched object params by VALUE
+  // rather than by identity, nothing is re-initialised again — the same guarantee
+  // the hoisted constants above give.
   const [prevEl, setPrevEl] = useState(null)
   const [nextEl, setNextEl] = useState(null)
+  const [paginationEl, setPaginationEl] = useState(null)
 
   // React to LIVE reduced-motion changes on the ALREADY-MOUNTED carousel (m12):
   // passing `autoplay={false}` alone does not reliably halt an autoplay
   // controller that is already running, so drive it explicitly — stop the moment
   // the user requests reduced motion, restart when they allow motion again.
-  // Guarded for instance/controller readiness and SSR; the four autoplay events
-  // wired below keep `isPlaying` (and so the toggle's label and `aria-pressed`) in
-  // sync with the controller, so no manual state update is needed here.
+  // Guarded for instance/controller readiness and SSR; the two autoplay events
+  // wired below keep `isRunning` (and so the label, `aria-pressed` and `aria-live`)
+  // in sync with the controller, so no manual state update is needed here.
+  //
+  // The hover latch is reconciled here too, in both directions. Turning reduced
+  // motion ON clears it, so a pointer that happens to be resting on the slider
+  // cannot restart autoplay when it eventually leaves. Turning motion back ON while
+  // the pointer is still inside ARMS it instead of starting — the visitor is hovering,
+  // so honouring the hover pause is the truthful behaviour, and leaving the carousel
+  // will start the rotation exactly as it would have any other time.
   useEffect(() => {
     const swiper = swiperRef.current
     if (!swiper?.autoplay) return
     if (reduced) {
+      resumeOnPointerLeaveRef.current = false
       swiper.autoplay.stop()
+    } else if (pointerInsideRef.current) {
+      resumeOnPointerLeaveRef.current = true
     } else {
       swiper.autoplay.start()
     }
   }, [reduced])
 
+  // Own the hover pause (see AUTOPLAY STATE TRUTH in the JSDoc). Native listeners on
+  // Swiper's OWN root element, for two reasons: it scopes the pause to exactly the
+  // area Swiper's `pauseOnMouseEnter` covered — the slides themselves, and NOT the
+  // control cluster (a later sibling, which is also where `pagination.el` now puts
+  // the bullets, so hovering a control is not a hover over the slides) — and it is
+  // the only
+  // way to reach that element, because Swiper's React wrapper swallows any prop
+  // matching /on[A-Z]/ as a SWIPER event name instead of forwarding it to the
+  // container, so an `onPointerEnter` prop would silently never fire.
+  //
+  // `[]` deps: the instance arrives through `onSwiper`, which Swiper's wrapper calls
+  // from its own mount layout effect — and a child's layout effect runs before a
+  // parent's passive effect, so `swiperRef.current` is already populated here. The
+  // listeners are removed on unmount.
+  //
+  // The `pointerType` guard mirrors Swiper's own: a hover pause is meaningless on
+  // touch, where there is no persistent pointer to rest on the carousel.
+  useEffect(() => {
+    const swiper = swiperRef.current
+    const el = swiper?.el
+    if (!el) return
+
+    const handlePointerEnter = (event) => {
+      if (event.pointerType !== 'mouse') return
+      pointerInsideRef.current = true
+      const autoplay = swiperRef.current?.autoplay
+      // Only suspend rotation that is actually running. If it is already stopped —
+      // by the visitor or by reduced motion — leave it alone and, crucially, leave
+      // the latch clear so moving away does not silently restart it.
+      if (!autoplay?.running) return
+      resumeOnPointerLeaveRef.current = true
+      autoplay.stop()
+    }
+
+    const handlePointerLeave = (event) => {
+      if (event.pointerType !== 'mouse') return
+      pointerInsideRef.current = false
+      if (!resumeOnPointerLeaveRef.current) return
+      resumeOnPointerLeaveRef.current = false
+      swiperRef.current?.autoplay?.start()
+    }
+
+    el.addEventListener('pointerenter', handlePointerEnter)
+    el.addEventListener('pointerleave', handlePointerLeave)
+    return () => {
+      el.removeEventListener('pointerenter', handlePointerEnter)
+      el.removeEventListener('pointerleave', handlePointerLeave)
+    }
+  }, [])
+
+  // Own the slide wrapper's `aria-live` value (see the Accessibility section of the
+  // JSDoc). Swiper's a11y module writes it once during `init()` and never revisits
+  // it, and it never re-initialises on a prop change, so the attribute went stale
+  // the moment rotation started or stopped. Keyed on `isRunning`, it now says `off`
+  // only while the content is genuinely auto-advancing — an auto-rotating carousel
+  // must not announce every slide — and `polite` whenever rotation is stopped or
+  // disabled, so a slide the visitor reaches with the arrows, the bullets or the
+  // keyboard IS announced. Guarded for instance readiness and SSR.
+  useEffect(() => {
+    const wrapperEl = swiperRef.current?.wrapperEl
+    if (!wrapperEl) return
+    wrapperEl.setAttribute('aria-live', isRunning ? 'off' : 'polite')
+  }, [isRunning])
+
   // Render nothing when there is no content — AFTER the hooks so their order
   // never changes across renders. Keeps callers free of empty-state guards.
   if (!items?.length) return null
 
-  // Single source of truth for the toggle's state: read it straight off the LIVE
-  // autoplay controller rather than inferring it. `running` is the flag the toggle
-  // owns — only `start()` and `stop()` change it — so it is stable, whereas the
-  // sibling `paused` flag is a transient suspension that Swiper raises and clears
-  // twice on every slide transition (see the JSDoc) and must not reach the label.
-  // Wired to all four autoplay events below, so `isPlaying` cannot drift out of
-  // sync down ANY path — including the `pauseOnMouseEnter` pause, which emits
-  // `autoplayPause` and never emits the stop event the old two-event wiring
-  // listened for.
-  const syncPlayingState = (swiper) => {
-    setIsPlaying(Boolean(swiper?.autoplay?.running))
+  // Single source of truth for every exposed state: read `running` straight off the
+  // LIVE autoplay controller rather than inferring it. With `pauseOnMouseEnter` off,
+  // `running` is changed ONLY by `start()`/`stop()` — the toggle, the hover handlers
+  // and the reduced-motion effect — so it now means exactly "the content is
+  // auto-advancing", and the label, `aria-pressed` and `aria-live` all derive from
+  // it. The sibling `paused` flag is deliberately never read: Swiper raises and
+  // clears it twice on every slide transition (see the JSDoc), so surfacing it would
+  // flicker the control ~6% of every cycle.
+  const syncRunningState = (swiper) => {
+    setIsRunning(Boolean(swiper?.autoplay?.running))
   }
 
-  // Explicit user control (WCAG 2.2.2): stop/start Swiper's autoplay. Reads the
-  // LIVE controller instead of React state so the action can never contradict the
-  // visible label, and guarded so it is a no-op if the instance or its autoplay
+  // Explicit user control (WCAG 2.2.2): stop/start Swiper's autoplay. Runs the
+  // SAME derivation as the label against the LIVE controller — never React state
+  // — so the action can never contradict the words on the button, not even for a
+  // single frame. Guarded so it is a no-op if the instance or its autoplay
   // controller is not ready.
+  //
+  // Either branch clears the hover latch, so an explicit press always outranks a
+  // pointer still resting on the slider: pressing Play means play until told
+  // otherwise, and moving the mouse away afterwards must not stop or restart
+  // anything the visitor did not ask for.
   const togglePlay = () => {
     const autoplay = swiperRef.current?.autoplay
     if (!autoplay) return
+    resumeOnPointerLeaveRef.current = false
     if (autoplay.running) {
-      // Clear a transient suspension (hover, backgrounded tab, in-flight
+      // Clear a transient suspension (a backgrounded tab, a touch drag, an in-flight
       // transition) BEFORE stopping. `stop()` only clears `running`, so stopping
       // while `paused` is set would leave that flag stuck true — and because
-      // `pause()` bails out when it is already set, hover-pausing would stay dead
-      // for the rest of the session even after autoplay is started again.
+      // `pause()` bails out when it is already set, the transition-internal pause
+      // would stay dead for the rest of the session even after autoplay restarts.
       if (autoplay.paused) autoplay.resume()
       autoplay.stop()
+      return
+    }
+    // The button reads "Play autoplay", so make it move. A controller that is
+    // still engaged but suspended — the mouse is over the slides — needs the
+    // suspension lifted; a stopped one needs starting. Either way the visitor
+    // gets the movement the label promised, and the resulting `autoplayResume` /
+    // `autoplayStart` event resyncs the label through `syncPlayingState`.
+    if (autoplay.running) {
+      autoplay.resume()
     } else {
       autoplay.start()
     }
   }
 
   return (
-    <div className={cn('relative', className)}>
+    // `onKeyDownCapture` cancels the browser's own Enter/Space activation of a
+    // pagination bullet so Swiper's a11y module remains the single activation path
+    // (see preventDuplicateBulletActivation above for the measured reasoning and
+    // for why this cannot live on the <Swiper> root).
+    <div className={cn('relative', className)} onKeyDownCapture={preventDuplicateBulletActivation}>
       <Swiper
         onSwiper={(swiper) => {
           swiperRef.current = swiper
         }}
-        // All four autoplay events resync the toggle from the live controller, so
-        // the label and `aria-pressed` can never contradict the real state — the
-        // `pauseOnMouseEnter` pause emits `autoplayPause` and no stop event, which
-        // the previous start/stop-only wiring could not observe.
-        onAutoplayStart={syncPlayingState}
-        onAutoplayStop={syncPlayingState}
-        onAutoplayPause={syncPlayingState}
-        onAutoplayResume={syncPlayingState}
+        // Exactly the two events that can change `running` — the only flag any
+        // exposed state derives from. `autoplayPause`/`autoplayResume` are
+        // deliberately NOT subscribed: with `pauseOnMouseEnter` off, the only pauses
+        // left are transition-internal (twice per rotation), a backgrounded tab and a
+        // touch drag, none of which the visitor can act on, and observing them is
+        // exactly what used to flicker the label.
+        onAutoplayStart={syncRunningState}
+        onAutoplayStop={syncRunningState}
         modules={MODULES}
         spaceBetween={24}
         slidesPerView={1}
@@ -449,7 +683,12 @@ export default function TestimonialSlider({ items = testimonials, className, ...
         // first or last slide. The arrows now wrap exactly as autoplay already
         // wrapped, so the two controls agree instead of one going dead.
         rewind
-        pagination={PAGINATION}
+        // Explicit pagination ELEMENT, for the same reason as the arrows: it makes
+        // the control cluster ONE DOM group instead of a screen region that merely
+        // looks like one, and it stops Swiper's React wrapper rendering a second
+        // band inside the slider. Spread from the hoisted constant so every static
+        // option stays in one place and only the live element is per-render.
+        pagination={{ ...PAGINATION, el: paginationEl }}
         a11y={A11Y}
         keyboard={KEYBOARD}
         autoplay={reduced ? false : AUTOPLAY}
@@ -468,35 +707,59 @@ export default function TestimonialSlider({ items = testimonials, className, ...
         ))}
       </Swiper>
 
-      {/* ONE control cluster, immediately below Swiper's in-flow pagination band,
-          so the dots, the arrows and the pause toggle read as a single control
-          zone instead of the three separate locations they used to occupy. Wraps
-          at narrow widths, so it fits 320px without horizontal overflow while
-          every control keeps its ≥44×44px target. Rendered AFTER the slider in
-          DOM order, which is also its visual order, so focus order matches what
-          the user sees. */}
-      <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-4">
-        {/* Icon-only arrows: the canonical <Button> renders a real, permanently
-            focusable <button> with the ≥44px target and the shared focus ring,
-            which is now unobstructed because these no longer overlay a card. The
-            glyph is decorative, so each control carries its own `aria-label`
-            (Swiper's a11y module labels only the arrows it owns at init time, and
-            these are supplied afterwards — so nothing overwrites these names). */}
-        <Button ref={setPrevEl} variant="outline" size="sm" aria-label="Previous testimonial">
-          <FaChevronLeft aria-hidden="true" className="h-4 w-4" />
-        </Button>
-        <Button ref={setNextEl} variant="outline" size="sm" aria-label="Next testimonial">
-          <FaChevronRight aria-hidden="true" className="h-4 w-4" />
-        </Button>
+      {/* ONE control cluster — a single container element holding every control this
+          carousel exposes: the pagination band on the first row, then the arrows and
+          the pause toggle on the second. Not just one screen region but one DOM
+          parent, which is why the pagination element is handed to Swiper through
+          `pagination.el` instead of being left inside `.swiper`. Rendered AFTER the
+          slider in DOM order, which is also its visual order, so focus order
+          matches what the user sees, and the rows are ordered dots → arrows →
+          toggle so the most-used control is reached first. `gap-4` (16px) between
+          the rows sits on the 8px scale and is the cluster's own spacing — the
+          stylesheet deliberately adds no margin to a relocated band. */}
+      <div className="mt-4 flex flex-col items-center gap-4">
+        {/* Swiper populates this element with the pagination bullets. It carries the
+            base `swiper-pagination` class because Swiper adds only its state and
+            modifier classes (`-clickable`, `-bullets`, `-horizontal`), never the base
+            one, and every stylesheet rule the band needs — static flow, the ~26px
+            bullet tap target, the brand colour and the ≥3:1 inactive contrast — is
+            declared for this position as well as for the in-slider one. Swiper's
+            a11y module gives each bullet its own "Go to slide N" name, so this
+            container needs no label of its own; it is left free of ARIA rather than
+            given a redundant role. */}
+        <div ref={setPaginationEl} className="swiper-pagination" />
 
-        {/* Play/Pause toggle — the required mechanism to pause the auto-rotating
+        {/* Arrows and the pause toggle. Wraps at narrow widths, so the row fits
+            320px without horizontal overflow while every control keeps its ≥44×44px
+            target. */}
+        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-4">
+          {/* Icon-only arrows: the canonical <Button> renders a real, permanently
+              focusable <button> with the ≥44px target and the shared focus ring,
+              which is now unobstructed because these no longer overlay a card. The
+              glyph is decorative, so each control carries its own `aria-label`
+              (Swiper's a11y module labels only the arrows it owns at init time, and
+              these are supplied afterwards — so nothing overwrites these names). */}
+          <Button ref={setPrevEl} variant="outline" size="sm" aria-label="Previous testimonial">
+            <FaChevronLeft aria-hidden="true" className="h-4 w-4" />
+          </Button>
+          <Button ref={setNextEl} variant="outline" size="sm" aria-label="Next testimonial">
+            <FaChevronRight aria-hidden="true" className="h-4 w-4" />
+          </Button>
+
+          {/* Play/Pause toggle — the required mechanism to pause the auto-rotating
             content. Rendered only when autoplay is actually active (i.e. motion is
             allowed); under reduced motion nothing auto-moves, so no control is
             needed. `aria-pressed` exposes the autoplay state programmatically
-            (pressed = autoplay engaged) so state is never carried by the label
-            text alone, and the visible text still flips so the available action
-            stays unambiguous for sighted users; both derive from the same
-            controller-backed value, so they cannot disagree.
+            (pressed = the content is auto-advancing) so state is never carried by
+            the label text alone, and the visible text still flips so the available
+            action stays unambiguous for sighted users; both derive from the same
+            controller-backed value, so they cannot disagree. Because the hover pause
+            now moves that same value, resting the pointer on the slider flips the
+            control to "Play autoplay" / `aria-pressed="false"` while the movement is
+            suspended, and moving away flips it back — the control reports what is
+            actually happening rather than what was last asked for. The icon carries
+            the state as SHAPE as well (pause bars ↔ play triangle), so the control
+            never leans on colour or on its text alone.
 
             `min-w-52` (208px, i.e. 26 steps of the 8px scale) reserves room for
             whichever of the two labels is wider, so pressing the toggle cannot
@@ -519,23 +782,24 @@ export default function TestimonialSlider({ items = testimonials, className, ...
             utility is spelled out in prose above rather than as a class token,
             because Tailwind v4 scans raw source text for candidates and would
             otherwise emit a rule for a class nothing renders. */}
-        {!reduced ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="md"
-            className="min-w-52"
-            aria-pressed={isPlaying}
-            onClick={togglePlay}
-          >
-            {isPlaying ? (
-              <FaPause aria-hidden="true" className="h-4 w-4" />
-            ) : (
-              <FaPlay aria-hidden="true" className="h-4 w-4" />
-            )}
-            {isPlaying ? 'Pause autoplay' : 'Play autoplay'}
-          </Button>
-        ) : null}
+          {!reduced ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              className="min-w-52"
+              aria-pressed={isRunning}
+              onClick={togglePlay}
+            >
+              {isRunning ? (
+                <FaPause aria-hidden="true" className="h-4 w-4" />
+              ) : (
+                <FaPlay aria-hidden="true" className="h-4 w-4" />
+              )}
+              {isRunning ? 'Pause autoplay' : 'Play autoplay'}
+            </Button>
+          ) : null}
+        </div>
       </div>
     </div>
   )

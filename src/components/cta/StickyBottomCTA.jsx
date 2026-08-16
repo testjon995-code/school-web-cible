@@ -19,17 +19,18 @@ import Button from '../ui/Button.jsx'
  * at `>= lg` (laptop / desktop), where the persistent floating action buttons
  * alone carry the CTAs.
  *
- * The reverse is equally load-bearing: below `lg` THIS BAR IS THE ONLY fixed
- * conversion affordance, because FloatingWhatsApp and FloatingCall are
- * `hidden lg:flex`. The two mechanisms are complementary by breakpoint rather
- * than stacked, so exactly one of them is on screen at any width. That is what
- * keeps a fixed 56px circle out of the phone content column, where the page
- * gutter is only 16px and the circles were measured covering hero CTAs, hero
- * prose and the contact form's submit button. Every action below stays a 44px
- * target in the thumb zone, so the project rule "display WhatsApp and Call
- * actions prominently on mobile" is satisfied here — and satisfied ONCE, as the
- * never-duplicate rule requires. Removing `lg:hidden`, or restoring the FABs
- * below `lg`, reintroduces both the duplication and the obstruction.
+ * The vertical relationship with the two FABs is load-bearing and is why the bar
+ * cannot move: FloatingWhatsApp and FloatingCall render at EVERY width (their
+ * geometry is AAP-frozen — see each widget's own positioning contract), and their
+ * mobile offsets `bottom-24` (96→152px) and `bottom-44` (176→232px) are derived
+ * from THIS bar's ~60–64px height plus a clearance gap. The bar is the highest-
+ * intent presentation on a phone — three labelled 44px targets in the thumb zone,
+ * one of which is Admission, which the FABs do not offer — so it satisfies both
+ * the "admission-focused CTA on every page" and the "prominent mobile WhatsApp
+ * and Call" rules at the widths where thumb reach matters most. Raising this bar's
+ * height, or dropping `lg:hidden`, therefore REQUIRES re-deriving both FAB offsets
+ * in lock-step; page content clearance for the bar is reserved once, globally, by
+ * the `.shell-bottom-clearance` utility on the layout shell (src/index.css).
  *
  * Reuse-first: all three actions are composed from the single canonical
  * `Button` primitive (../ui/Button.jsx) — never a raw, re-styled anchor or
@@ -55,8 +56,9 @@ import Button from '../ui/Button.jsx'
  * WCAG touch-target guideline, with `px-2 text-sm` overrides (merged LAST by
  * Button's internal `cn`, so they win over the default `px-6 text-base`) so the
  * "WhatsApp" / "Admission" labels fit three-up without wrapping down to ~320px.
- * The bar sits at `z-40` — the same layer as the floating buttons, which cannot
- * overlap it because they only render from `lg` up, where this bar is hidden.
+ * The bar sits at `z-40` — the same layer as the floating buttons, which are
+ * deliberately offset above it (bottom-24 / bottom-44) and therefore never
+ * overlap it.
  *
  * Accessibility (WCAG AA): every action carries a visible text label, which is
  * its accessible name, so the leading icons are purely decorative and marked

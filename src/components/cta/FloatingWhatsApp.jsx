@@ -3,11 +3,11 @@ import { siteConfig } from '../../data/siteConfig.js'
 import { cn } from '../../lib/cn.js'
 
 /**
- * FloatingWhatsApp — the persistent WhatsApp floating action button (FAB) for
- * the CIBLE School of Language SPA (AAP §0.6.1 Group 8; folder-requirement C,
- * file #1). It anchors a one-tap WhatsApp chat link to the bottom-right corner
- * of every page from the `lg` breakpoint upward, where it is one of only two
- * persistent conversion affordances on screen.
+ * FloatingWhatsApp — the persistent, always-visible WhatsApp floating action
+ * button (FAB) for the CIBLE School of Language SPA (AAP §0.6.1 Group 8;
+ * folder-requirement C, file #1). It fulfils the AAP conversion rule "Display
+ * WhatsApp and Call actions prominently on mobile" by anchoring a one-tap
+ * WhatsApp chat link to the bottom-right corner of every page at every width.
  *
  * It is rendered by src/components/layout/Layout.jsx alongside <FloatingCall />
  * and the mobile <StickyBottomCTA /> bar. It takes NO props and renders with no
@@ -19,38 +19,43 @@ import { cn } from '../../lib/cn.js'
  * semantics (target="_blank" + rel="noopener noreferrer") mirror the shared
  * Button primitive's behaviour for http(s) URLs.
  *
- * Visibility — `lg` AND UP, complementary to the mobile bar (closes the measured
- * content-obstruction defect; keep this reasoning with the code):
- *   • `hidden lg:flex`. Below `lg` the `lg:hidden` StickyBottomCTA bar already
- *     surfaces Call, WhatsApp and Admission as three 44px targets pinned to the
- *     thumb zone, so the project rule "display WhatsApp and Call actions
- *     prominently on mobile" is met there by ONE affordance instead of two.
- *   • Rendering both put a 56px circle inside the content column at phone
- *     widths: `Container`'s gutter is 16px (`px-4`), so a `right-4` FAB spans the
- *     column's own last 56px and could only ever sit ON page content. Measured at
- *     390px it covered the hero WhatsApp CTA across that CTA's full 44px height
- *     (2464px²) and `elementFromPoint` at the overlap returned THIS button — a tap
- *     on the visible green CTA dialled the phone instead; at 320px the sibling hid
- *     the word "in" in the hero lead paragraph, and on /contact it covered the
- *     full height of the form's "Send via WhatsApp" submit button.
- *   • Nothing is withdrawn: WhatsApp stays one tap away at EVERY width — from the
- *     bar below `lg`, from this FAB at `lg` and above — and both read the same
- *     `siteConfig.whatsappHref` target, so the two never disagree. The pair is
- *     mutually exclusive by breakpoint, which is also why no scroll/resize
- *     observer is needed to police the FAB's position.
+ * Visibility — EVERY width. This is a FROZEN contract, not a styling preference:
+ * the AAP declares this widget's geometry (§0.7.1.7 Group 7 and §0.10.1.8) and
+ * confines any change here to the elevation token alone, because the offsets are
+ * derived arithmetic that the sibling FAB depends on. A
+ * previous change made both FABs `hidden lg:flex` to clear page content at phone
+ * widths and was reverted as an AAP regression.
+ *   • `flex` at every breakpoint — never `hidden`. Below `lg` this FAB and the
+ *     `lg:hidden` StickyBottomCTA bar are BOTH on screen by design: the bar
+ *     carries the three-up Call / WhatsApp / Admission row in the thumb zone and
+ *     the FABs keep the same two channels reachable from the corner. Both read the
+ *     same `siteConfig.whatsappHref` target, so they can never disagree, and
+ *     neither needs a scroll or resize observer to police its position.
+ *   • If a fixed widget is measured covering something, the fix belongs on the
+ *     OTHER surface, never here. Scrolling content moves out from under a
+ *     viewport-anchored control by itself; the one row that cannot is the LAST row
+ *     of the document. The Footer reserves VERTICALLY for the mobile sticky bar
+ *     there (`pb-20`, relaxing to `lg:pb-8`), but it carries no horizontal
+ *     reservation for this FAB column: the footer shell is a reference-only
+ *     authority, so the residual overlap of its bottom-row legal links between
+ *     roughly 1024px and 1392px is a KNOWN, DISCLOSED limitation awaiting a
+ *     decision, not something to absorb here. Hiding or relocating this FAB
+ *     instead would break the derived offsets below and the rule mandating
+ *     prominent mobile Call/WhatsApp.
  *
  * Positioning / non-overlap contract (VALIDATION-CRITICAL — must stay in sync
  * with FloatingCall and StickyBottomCTA):
- *   • This FAB is the BOTTOM-MOST of the two floating buttons: `bottom-6` (24px),
- *     with FloatingCall directly above at `bottom-28` (112px → 112–168px for a
- *     56px button), leaving a 32px gap so the two never overlap. The sticky bar
- *     is not on screen at these widths, so no bar clearance is needed.
- *   • Right gutter: `right-6` (24px).
+ *   • This FAB is the BOTTOM-MOST of the two floating buttons.
+ *   • Mobile (< lg): `bottom-24` (96px) clears the ~60–64px-tall StickyBottomCTA
+ *     bar (which is `lg:hidden` and pinned to `bottom-0`) with margin to spare.
+ *   • Desktop (≥ lg): `lg:bottom-6` (24px) — the sticky bar is hidden at `lg`,
+ *     so the FAB drops to the normal corner offset.
+ *   • Right gutter: `right-4` (16px) mobile / `lg:right-6` (24px) desktop.
  *   • `z-40` keeps it above page content but below a typical `z-50` nav drawer.
  *   • SIZING LOCK-STEP: this FAB is `h-14 w-14` (56px). The sibling FloatingCall
- *     shares that size and its `bottom-28` offset is derived from it, so changing
- *     this size REQUIRES updating the sibling's offset (see FloatingCall.jsx) to
- *     preserve the non-overlap gap.
+ *     sits directly above at `bottom-44` (mobile) / `lg:bottom-28` (desktop) and
+ *     shares the same 56px size. Changing this size REQUIRES updating the
+ *     sibling's offset (see FloatingCall.jsx) to preserve the non-overlap gap.
  *
  * Accessibility (WCAG AA):
  *   • Icon-only control → `aria-label` supplies the accessible name; the
@@ -71,6 +76,19 @@ import { cn } from '../../lib/cn.js'
  * Classes are composed through the canonical `cn()` helper so the string stays
  * mergeable. `prefers-reduced-motion` is neutralised globally in src/index.css,
  * so the `transition-colors` hover micro-interaction needs no extra handling.
+ *
+ * Interaction states — rest → hover → PRESSED → focus, the same four-step ladder
+ * the canonical <Button> and StickyBottomCTA expose, so this control acknowledges
+ * a tap like every other action on the site. `active:bg-accent-800` is the pressed
+ * step: it walks one rung further down the accent ramp that hover already uses
+ * (`accent-600` → `accent-700` → `accent-800`), mirroring <Button>'s own accent
+ * ladder shape. It is deliberately PAINT-ONLY — no transform, no size or position
+ * change — because this element is `fixed` and 56px is also its touch target, so
+ * scaling or nudging it on press would move the target out from under the finger
+ * that is pressing it and would invalidate the non-overlap arithmetic recorded
+ * above. Contrast holds: white on `accent-800` (#166534) is ≈ 7.4:1, comfortably
+ * past the 3:1 non-text floor and past 4.5:1 as well. `:active` is a pointer/keys
+ * state on a real anchor, so it needs no script and no extra ARIA.
  *
  * @returns {import('react').ReactElement} A fixed-position WhatsApp deep-link anchor.
  */
@@ -93,9 +111,9 @@ function FloatingWhatsApp() {
       rel="noopener noreferrer"
       aria-label="Chat with CIBLE on WhatsApp"
       className={cn(
-        'fixed bottom-6 right-6 z-40',
-        'hidden h-14 w-14 items-center justify-center rounded-full lg:flex',
-        'bg-accent-600 text-white shadow-float transition-colors duration-200 hover:bg-accent-700',
+        'fixed bottom-24 right-4 z-40 lg:bottom-6 lg:right-6',
+        'flex h-14 w-14 items-center justify-center rounded-full',
+        'bg-accent-600 text-white shadow-float transition-colors duration-200 hover:bg-accent-700 active:bg-accent-800',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2',
       )}
     >

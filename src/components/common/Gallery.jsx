@@ -42,11 +42,13 @@ import 'swiper/css/a11y'
  * declaration beats a layered one regardless of selector specificity, so NO
  * Tailwind utility class on this component can override a Swiper base rule —
  * `swiper.css` declares `.swiper { padding: 0 }` and `.swiper-slide
- * { height: 100% }` outside every layer. A `pb-12` class on a slider root
- * therefore computes to `padding-bottom: 0px`: present in the markup, inert in
- * the cascade. This carousel never even had that class, so Swiper's pagination —
- * absolutely positioned at `bottom: 8px`, `z-index: 10` — sat directly ON the
- * slide media by default.
+ * { height: 100% }` outside every layer. A bottom-padding utility on a slider root
+ * — say the 12 step, spelled out here rather than written as a class token because
+ * Tailwind v4 scans raw source text, comments included, and would otherwise emit a
+ * rule no element uses — therefore computes to `padding-bottom: 0px`: present in
+ * the markup, inert in the cascade. This carousel never even had that class, so
+ * Swiper's pagination — absolutely positioned at `bottom: 8px`, `z-index: 10` —
+ * sat directly ON the slide media by default.
  *
  * Every Swiper-targeting declaration consequently lives in the single un-layered
  * third-party override zone of `src/index.css`, which is the only position in the
@@ -128,12 +130,15 @@ import 'swiper/css/a11y'
  *
  * Accessibility (WCAG AA):
  * - Every `<img>` carries a meaningful `alt` supplied by the data.
- * - The carousel is exposed as a NAMED region: the `a11y` options set
- *   `role="group"`, an `aria-label` and `aria-roledescription="carousel"` on the
- *   slider root, and `aria-roledescription="slide"` on every slide alongside
- *   Swiper's own `role="group"` and "N / M" slide label. Those four parameters
- *   default to `null`, which is why the widget was previously unnamed and its
- *   slides undescribed (W3C WAI Carousels Tutorial).
+ * - The carousel is exposed as a NAMED CAROUSEL GROUP — `role="group"` (not
+ *   `role="region"`, so no landmark is added to the page) carrying an `aria-label`
+ *   and `aria-roledescription="carousel"` on the slider root, with
+ *   `aria-roledescription="slide"` on every slide alongside Swiper's own
+ *   `role="group"` and "N / M" slide label. `group` is the role the W3C WAI
+ *   Carousels Tutorial uses for a carousel that is not itself a landmark, which
+ *   this is not: `/gallery` already names the section with its own `sr-only`
+ *   heading. All four `a11y` parameters default to `null`, which is why the widget
+ *   was previously unnamed and its slides undescribed.
  * - `wrapperLiveRegion` is left at its default ON PURPOSE. Swiper resolves it to
  *   `aria-live="polite"` when no autoplay is running, which is exactly what the
  *   WAI recommends for a user-driven carousel: because every slide change here is
@@ -198,10 +203,21 @@ import 'swiper/css/a11y'
  *   numeric Swiper API values (`spaceBetween`, `slidesPerView`, breakpoints) are
  *   carousel configuration, not CSS style values.
  * - The caller `className` is merged LAST through the shared `cn()` helper onto
- *   the component's OUTER wrapper — not onto the `<Swiper>` root — so it can
- *   position the whole widget (slides plus controls) as one block rather than
- *   only the slide row. Everything a caller could previously reach it can still
- *   reach; the target is simply the element that now bounds the entire carousel.
+ *   the component's OUTER wrapper — not onto the `<Swiper>` root, where it used to
+ *   land — so it can position the whole widget (slides plus controls) as one block
+ *   rather than only the slide row. That is a DELIBERATE CHANGE OF TARGET, and it
+ *   narrows what the prop can reach, so it is stated rather than glossed: a class
+ *   that styles the widget from the outside — margin, width, max-width, alignment,
+ *   a positioning context, a scoped custom property — behaves as it did and now
+ *   covers the controls as well, but a class that depended on landing ON the Swiper
+ *   root no longer has that element to work with. Overriding the root's own
+ *   `overflow` or padding, and any `.swiper …` descendant rule keyed off a
+ *   caller-supplied root class, are the two cases that lose their hook. Neither is
+ *   a live regression — `src/pages/Gallery.jsx`, the only consumer, passes no
+ *   `className` — and neither belongs on this prop anyway: the Swiper root's
+ *   geometry is owned by the un-layered override block in `src/index.css`, because
+ *   Swiper's own un-layered CSS beats any Tailwind utility wherever it is applied
+ *   (see the cascade note above).
  *
  * Stable references (Swiper re-init safety): all static Swiper configuration
  * (`MODULES`, `BREAKPOINTS`, `PAGINATION`, `KEYBOARD`, `A11Y`) is hoisted to
@@ -268,6 +284,37 @@ const BREAKPOINTS = { 640: { slidesPerView: 2 }, 1024: { slidesPerView: 3 } }
 // contrast, which reaches the bullets by custom-property inheritance from
 // `.swiper`. See the cascade section of the JSDoc above.
 const PAGINATION = { clickable: true, bulletElement: 'button' }
+
+// The one thing `bulletElement: 'button'` does NOT fix, and the reason this handler
+// exists — the identical remediation the sibling TestimonialSlider carries, kept in
+// step with it. Swiper's a11y module attaches its own `keydown` listener to the
+// pagination container whenever pagination is clickable and ends it by calling
+// `targetEl.click()` WITHOUT `preventDefault()` (node_modules/swiper/modules/a11y.mjs
+// — `onEnterOrSpaceKey`). With Swiper's default `<span role="button">` bullet that
+// synthetic click is the only activation path; a native <button> bullet adds the
+// browser's own (Enter on keydown, Space on keyup), so ONE key press produced TWO
+// clicks. Measured on this carousel before the handler: `clicks: 2, keydowns: 1` for
+// both keys, with a `slideTo` proxy recording TWO calls to the same index for a
+// single keystroke, while a real mouse click produced exactly 1. Swiper guards its
+// equivalent ARROW listener behind `el.tagName !== 'BUTTON'` but applies the
+// pagination one unconditionally, so the cluster's arrows are unaffected.
+//
+// Cancelling the NATIVE path rather than Swiper's keeps the library owning
+// navigation (no second pagination implementation, no parallel `slideTo`) and keeps
+// Space from page-scrolling the document out from under the focused bullet.
+// Capture-phase attachment cannot go on the <Swiper> root, because Swiper's React
+// wrapper routes every prop matching /on[A-Z]/ into its own event map rather than
+// onto the container element; it therefore sits on the outer wrapper this component
+// owns, whose capture pass runs before the pagination element's bubble listener.
+// Hoisted to module scope for a stable reference, like every other option here.
+const BULLET_SELECTOR = '.swiper-pagination-bullet'
+function preventDuplicateBulletActivation(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  const target = event.target
+  if (typeof target?.matches !== 'function' || !target.matches(BULLET_SELECTOR)) return
+  event.preventDefault()
+}
+
 // Arrow-key control for the carousel. `onlyInViewport` MUST be false: Swiper
 // v14's in-viewport gate compares the carousel's PAGE-coordinate offset against
 // the window height, so a carousel below the fold (as on the Gallery page) never
@@ -278,13 +325,16 @@ const KEYBOARD = { enabled: true, onlyInViewport: false, pageUpDown: false }
 // why the carousel was previously an UNNAMED, UNDESCRIBED widget: its root had no
 // role, no accessible name and no aria-roledescription, and its slides carried
 // role="group" with an "N / M" label but nothing identifying them as slides.
-// Setting them makes the gallery a named region announced as a carousel whose
+// Setting them makes the gallery a named GROUP announced as a carousel whose
 // children are announced as slides, which is the structure the W3C WAI Carousels
-// Tutorial asks for. The name describes the WIDGET, not its contents — the images
-// themselves are supplied by the caller and each carries its own `alt`, so no
-// claim about what they depict is authored here. `slideRole` already defaults to
-// 'group' and `wrapperLiveRegion` is left alone on purpose (see the JSDoc:
-// without autoplay Swiper correctly resolves it to `polite`).
+// Tutorial asks for. `containerRole` is deliberately 'group' rather than 'region':
+// a named `region` is a landmark, and the consuming page already names this section
+// with its own heading, so a landmark here would only add noise to the landmark
+// list. The name describes the WIDGET, not its contents — the images themselves are
+// supplied by the caller and each carries its own `alt`, so no claim about what they
+// depict is authored here. `slideRole` already defaults to 'group' and
+// `wrapperLiveRegion` is left alone on purpose (see the JSDoc: without autoplay
+// Swiper correctly resolves it to `polite`).
 const A11Y = {
   enabled: true,
   containerRole: 'group',
@@ -423,8 +473,12 @@ export default function Gallery({ images = [], className, lightbox = true, ...pr
   return (
     <>
       {/* Outer wrapper: bounds the slides AND the control cluster, so the caller's
-          `className` (merged last) positions the whole widget as one block. */}
-      <div className={cn('relative', className)}>
+          `className` (merged last) positions the whole widget as one block. Its
+          `onKeyDownCapture` cancels the browser's own Enter/Space activation of a
+          pagination bullet so Swiper's a11y module stays the single activation path
+          (see preventDuplicateBulletActivation above for the measured reasoning and
+          for why this cannot live on the <Swiper> root). */}
+      <div className={cn('relative', className)} onKeyDownCapture={preventDuplicateBulletActivation}>
         <Swiper
           modules={MODULES}
           spaceBetween={16}

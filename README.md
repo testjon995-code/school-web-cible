@@ -127,11 +127,8 @@ vite.config.js     react() + tailwindcss() plugins
 ## Pages
 
 The application ships 17 content pages plus a catch-all 404, all lazy-loaded under a
-shared layout shell (navbar, footer, a mobile sticky CTA bar with Call / WhatsApp /
-Admission, and — from the `lg` breakpoint up, where that bar is hidden — floating
-WhatsApp and Call buttons). The bar and the floating buttons are complementary by
-breakpoint rather than stacked, so Call and WhatsApp are always one tap away
-without a fixed control sitting on top of page content at phone widths:
+shared layout shell (navbar, footer, floating WhatsApp/Call widgets, and a mobile
+sticky CTA bar):
 
 1. **Home** — an eleven-band conversion funnel: hero, trust/proof, courses, why
    choose CIBLE, learning journey, faculty/mentors, student success, animated
@@ -341,9 +338,9 @@ this build** and are documented so integrators are not surprised:
   (real photographs, verified faculty biographies, and actual student records)
   before launch. This is disclosed **visibly in the running app** — a site-wide
   "Demo content notice" band in the footer, plus point-of-claim notices on the
-  Faculty, Success Stories, About, Career, Events, Blog, and Courses pages — and is
-  gated by the `representativeContent` flag in `src/data/siteConfig.js` (set it to
-  `false` once the content is client-verified to retire every notice at once).
+  Home, Faculty, Success Stories, About, Career, Events, Blog, and Courses pages —
+  and is gated by the `representativeContent` flag in `src/data/siteConfig.js` (set
+  it to `false` once the content is client-verified to retire every notice at once).
 - **Unverified social profiles are hidden by default.** Social links and the
   `sameAs` entries in the JSON-LD are gated behind `socialVerified` in
   `src/data/siteConfig.js` (currently `false`), so no unconfirmed identity is

@@ -35,11 +35,34 @@
  *                      page (admissions-priority ruleset).
  *
  * Data comes exclusively from `src/data/events.js` (the single source of truth),
- * so the page stays fully presentational — no local state and no hooks. The
- * upcoming-events filter is a plain derived value computed inside the component
- * body: deriving it per render (rather than once at module scope) keeps a
- * long-lived SPA session from serving a stale "today", and a derived `const` is
- * not a hook, so the page's hook-free status is preserved.
+ * so every value on the page is presentational. The page holds exactly ONE piece
+ * of state and runs exactly ONE effect, and both exist for a single reason: to
+ * make the "Upcoming events" heading stay true in a session that outlives the
+ * calendar day it started in.
+ *
+ * DAY-BOUNDARY LIFECYCLE — what is actually guaranteed, and why state is needed.
+ * The cut-off is the start of the current LOCAL day. Deriving it during render is
+ * necessary but NOT sufficient: React re-renders in response to state, props or
+ * context changing, and none of those change merely because a clock passes
+ * midnight. A purely derived cut-off is therefore only as fresh as the last
+ * render that happened to occur for some other reason — so a tab left open
+ * overnight would keep listing yesterday's session under an "upcoming" heading
+ * until something unrelated forced a re-render. Closing that gap requires an
+ * explicit trigger, which is what `dayStart` (state) and the rollover effect
+ * provide:
+ *   • `dayStart` holds the cut-off as a timestamp, so changing it re-renders and
+ *     re-filters the grid.
+ *   • The effect schedules a one-shot `setTimeout` for the next local midnight,
+ *     re-reads the clock when it fires, and then reschedules itself for the
+ *     following midnight. Recomputing the delay from the live clock on every
+ *     rollover (instead of repeating a fixed 24-hour interval) means the schedule
+ *     self-corrects after a throttled background tab, a suspended machine or a DST
+ *     shift, rather than drifting a little further out of step each day.
+ *   • The effect's cleanup clears the pending timer, so a navigation away from
+ *     this route leaves nothing pending — no leaked timer and no `setState` on an
+ *     unmounted component.
+ * `setDayStart` is called with a freshly computed value, so on the rare rollover
+ * where the value is unchanged React bails out of the re-render by itself.
  *
  * Dates are compared through `parseCivilDate` (`src/lib/dates.js`), which reads a
  * bare 'YYYY-MM-DD' value as a CIVIL date using local year/month/day components.
@@ -63,6 +86,7 @@
  *
  * @returns {import('react').ReactElement} The rendered Events page content.
  */
+import { useEffect, useState } from 'react'
 import Seo from '../components/seo/Seo.jsx'
 import StructuredData from '../components/seo/StructuredData.jsx'
 import Container from '../components/ui/Container.jsx'
@@ -82,17 +106,86 @@ const crumbs = [
   { name: 'Events', path: '/events' },
 ]
 
+// Small cushion added to every rollover timer so the callback lands just AFTER
+// the boundary rather than on it. Timer callbacks can fire a fraction early, and
+// a callback that runs at 23:59:59.999 would read the OLD day and schedule its
+// successor a full day out, skipping a rollover. One second is imperceptible to
+// the reader and removes that class of off-by-one entirely.
+const ROLLOVER_GRACE_MS = 1000
+
+/**
+ * The start of the current day in the viewer's LOCAL timezone, as a timestamp.
+ *
+ * This is the cut-off the upcoming-events filter compares against. Local midnight
+ * is used rather than the current instant so an event scheduled for later today
+ * still counts as upcoming, and it is expressed as a number so it can be held in
+ * state and compared with `Date.prototype.getTime()` values directly.
+ *
+ * @returns {number} Milliseconds since the epoch at local midnight today.
+ */
+function startOfLocalDay() {
+  const date = new Date()
+  date.setHours(0, 0, 0, 0)
+  return date.getTime()
+}
+
+/**
+ * How long until the next local midnight, measured from the live clock.
+ *
+ * Computed by normalising to local midnight today, advancing the calendar day by
+ * one, then re-normalising the time components. The second `setHours` is not
+ * redundant: `setDate` re-resolves the instant through the local timezone's
+ * daylight-saving rules, so in a zone whose clocks shift at or near midnight the
+ * bumped value can land an hour either side of it. Re-normalising pins the result
+ * to the real local start of the next day, which keeps the schedule correct across
+ * a DST transition instead of firing an hour early or late.
+ *
+ * Because the value is derived from the clock at call time, each rescheduled timer
+ * corrects any drift the previous one accumulated.
+ *
+ * @returns {number} Milliseconds from now until the next local midnight.
+ */
+function msUntilNextLocalMidnight() {
+  const next = new Date()
+  next.setHours(0, 0, 0, 0)
+  next.setDate(next.getDate() + 1)
+  next.setHours(0, 0, 0, 0)
+  return next.getTime() - Date.now()
+}
+
 function Events() {
-  // Start of TODAY in the viewer's local timezone. Derived per render (never at
-  // module scope) so a long-lived SPA session that stays open across midnight
-  // cannot keep serving a stale "today". This is a plain derived value, not a
-  // hook, so the page remains hook-free and stateless.
-  //
-  // The boundary is local MIDNIGHT rather than `Date.now()` on purpose: an event
-  // scheduled for later today is still upcoming, and comparing against the
-  // current instant would drop it from the grid part-way through its own day.
-  const startOfToday = new Date()
-  startOfToday.setHours(0, 0, 0, 0)
+  // Start of TODAY in the viewer's local timezone, held in state so that crossing
+  // midnight can actually re-render this page. Initialised lazily (the function is
+  // PASSED, not called) so the clock is read once on mount rather than on every
+  // render. See the DAY-BOUNDARY LIFECYCLE note in the JSDoc above for why a
+  // value merely derived during render is not sufficient on its own.
+  const [dayStart, setDayStart] = useState(startOfLocalDay)
+
+  // Re-arm the cut-off at each local midnight for as long as this route is
+  // mounted. A self-rescheduling one-shot timer is used rather than a fixed
+  // 24-hour `setInterval`: the delay is recomputed from the live clock every time,
+  // so the schedule stays aligned after a throttled background tab, a suspended
+  // machine or a daylight-saving shift. `setDayStart` receives a freshly read
+  // value, so if the clock has not in fact crossed a boundary React bails out of
+  // the re-render on its own.
+  useEffect(() => {
+    let timerId
+
+    const scheduleRollover = () => {
+      timerId = setTimeout(() => {
+        setDayStart(startOfLocalDay())
+        scheduleRollover()
+      }, msUntilNextLocalMidnight() + ROLLOVER_GRACE_MS)
+    }
+
+    scheduleRollover()
+
+    // Clear whichever timer is currently pending. Because each callback
+    // reassigns `timerId` before scheduling the next one, this always cancels the
+    // live timer — so leaving the route leaves nothing pending and nothing can
+    // call `setDayStart` after unmount.
+    return () => clearTimeout(timerId)
+  }, [])
 
   // Only events happening today or later belong under the "Upcoming events"
   // heading. Dates are compared through `parseCivilDate` (src/lib/dates.js),
@@ -109,7 +202,7 @@ function Events() {
     // bad record is dropped from the grid rather than throwing or sorting
     // unpredictably.
     if (!eventDate) return false
-    return eventDate.getTime() >= startOfToday.getTime()
+    return eventDate.getTime() >= dayStart
   })
 
   // `filter` preserves source order and src/data/events.js is already authored

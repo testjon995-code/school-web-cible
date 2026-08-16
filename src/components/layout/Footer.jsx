@@ -58,16 +58,9 @@ import logoWhite from '../../assets/logo-white.svg'
  *   icons, footer legal links) meets the 44×44px minimum touch target (M12).
  * - The global `:focus-visible` ring (src/index.css) is left intact.
  *
- * Fixed-widget clearance: the bottom bar is the LAST row of the document, so it
- * is the one row that cannot be scrolled out from under a fixed overlay, and it
- * reserves space for both of them on the axis each encroaches from. `pb-20`
- * (80px) relaxing to `lg:pb-8` (32px) keeps the copyright clear of the
- * mobile-only `StickyBottomCTA` bar; `lg:pr-22` relaxing to `2xl:pr-6` keeps the
- * legal links clear of the desktop-only floating Call/WhatsApp column, which
- * appears at exactly the breakpoint that bar disappears. See the bottom-bar
- * comment below for the measured arithmetic behind both numbers, and note that
- * `pr-*` replaces the base `px-6` gutter rather than adding to it — which is why
- * the release step is `pr-6`, not `pr-0`.
+ * Mobile clearance: the bottom bar uses `pb-20` (80px) on mobile, relaxing to
+ * `lg:pb-8` (32px) on desktop, so the mobile-only `StickyBottomCTA` bar (fixed
+ * at the viewport bottom, `lg:hidden`) never covers the copyright text.
  *
  * @param {object} [props]
  * @param {string} [props.className] Extra classes merged LAST via {@link cn}
@@ -79,23 +72,11 @@ function Footer({ className }) {
   return (
     <div className={cn('bg-primary-900 text-white', className)}>
       {/* Main grid — brand + contact, grouped navigation, and newsletter.
-          One column on mobile, two at `md`, and a 12-track grid at `lg` so the
-          three regions align to the 8px layout scale.
-          Track allocation is 3 + 5 + 4 at `lg` and 4 + 5 + 3 from `xl`: between
-          1024px and 1279px a 12-track row is at its narrowest (44.67px per
-          track), and at three tracks the newsletter cell measured 214px — after
-          its own 32px padding and the field's own 16px padding that left the
-          email input a 116px content box, too narrow for the 144.25px its
-          `you@example.com` placeholder needs, so the placeholder rendered as
-          "you@example.". Handing the newsletter a fourth track there (298.67px →
-          a 200.67px input content box) fixes it without touching the navigation
-          columns, whose labels ("Science Coaching", "Terms & Conditions") need
-          the width more than the brand block does — the brand block is logo plus
-          wrapping prose and reflows cleanly at 214px. From `xl` the row is wide
-          enough for the original allocation, so it is restored unchanged. */}
+          One column on mobile, two at `md`, and a 12-track grid at `lg`
+          (4 + 5 + 3) so the three regions align to the 8px layout scale. */}
       <Container className="grid gap-10 py-16 md:grid-cols-2 lg:grid-cols-12">
         {/* Brand + contact */}
-        <div className="flex flex-col gap-4 lg:col-span-3 xl:col-span-4">
+        <div className="flex flex-col gap-4 lg:col-span-4">
           {/* `self-start` cancels the flex-column cross-axis stretch so the
               logo renders at its natural width (h-10 w-auto) and stays
               left-aligned with the tagline — matching the Navbar treatment. */}
@@ -194,7 +175,7 @@ function Footer({ className }) {
         {/* Newsletter — reused primitive; only a layout className is passed so
             its intentional light `bg-surface` card is preserved (its internal
             text uses dark foreground tokens for AA on that light surface). */}
-        <Newsletter className="lg:col-span-4 xl:col-span-3" />
+        <Newsletter className="lg:col-span-3" />
       </Container>
 
       {/* Representative-content disclosure (M02 / M03, AAP §0.7.2): while the
@@ -222,42 +203,10 @@ function Footer({ className }) {
         </div>
       ) : null}
 
-      {/* Bottom bar — copyright + inline legal links. This row reserves space for
-          BOTH fixed conversion affordances, on the axis each one actually
-          encroaches from, because it is the LAST row of the document and so is
-          the one row that cannot be scrolled out from under either of them.
-            • Vertically, `pb-20 lg:pb-8` keeps the copy clear of the mobile-only
-              StickyBottomCTA bar, and drops at `lg` where that bar is hidden.
-            • Horizontally, `lg:pr-22 2xl:pr-6` keeps the legal links clear of the
-              desktop-only floating Call/WhatsApp column, which appears at exactly
-              the breakpoint the bar disappears. The arithmetic is bounded and
-              worth recording, INCLUDING the trap it hides: the widgets are
-              viewport-anchored at `right-6` (24px) and 56px wide, so their left
-              edge is at `vw - 80`, while Container's content box ends at
-              `vw - 24` up to 1280px and at `(vw + 1280)/2 - 24` beyond it — a
-              constant 56px of intrusion through 1280px, tapering to zero at
-              1392px. The trap: `pr-*` REPLACES the base `px-6` padding-right, it
-              does not add to it, so the reservation must cover the 24px gutter
-              too. It therefore needs 80px to graze the widget and `pr-22` (88px)
-              to clear it with 8px to spare; `pr-16` (64px) was measured leaving
-              16px of the link still covered. For the same reason the wide-screen
-              release is `2xl:pr-6` (restoring the base 24px gutter, flush with
-              the columns above) and NOT `pr-0`, which was measured overhanging
-              every other footer row by 24px. `2xl` (1536px) is the nearest stock
-              breakpoint above 1392, so between 1392 and 1535 the reservation is
-              redundant and this row reads 64px narrower than the rows above it —
-              a deliberate trade, because the only earlier stop, `xl` (1280px),
-              is a width that still needs the full reservation. Measured before this reservation
-              existed: at 1024 and 1280 the WhatsApp widget covered 100% of the
-              "Terms" link on every route, leaving only 6-7% of its area
-              pointer-hittable and its CENTRE not hittable at all (elementFromPoint
-              returned the widget's svg) — keyboard reach was unaffected, but a
-              mouse or touch user could not activate it. Do not remove either
-              reservation, and do not raise this row's z-index to win instead: the
-              stacking ledger (skip link 1000 > header/modals 50 > conversion
-              widgets 40) is deliberate. */}
+      {/* Bottom bar — copyright + inline legal links. `pb-20 lg:pb-8` keeps the
+          copy clear of the mobile-only fixed StickyBottomCTA bar. */}
       <div className="border-t border-white/10">
-        <Container className="flex flex-col items-center justify-between gap-4 py-6 pb-20 text-sm text-primary-100 sm:flex-row lg:pr-22 lg:pb-8 2xl:pr-6">
+        <Container className="flex flex-col items-center justify-between gap-4 py-6 pb-20 text-sm text-primary-100 sm:flex-row lg:pb-8">
           <p>
             © {new Date().getFullYear()} {siteConfig.name}. All rights reserved.
           </p>

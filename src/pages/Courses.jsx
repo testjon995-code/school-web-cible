@@ -139,7 +139,7 @@ function Courses() {
             destinations per category (English/Science/Computer cards open their
             track page, Career opens /admission), so every card keeps
             `CourseCard`'s neutral "Learn more" default. A single catalog-wide
-            label such as "Apply now" would be untrue for most of these cards —
+            label such as "Apply Now" would be untrue for most of these cards —
             the track pages may use it only because they ALSO pass `ctaTo` to
             force every card to /admission. Please do not add one here. */}
         <CourseGrid items={courses} showFilter />

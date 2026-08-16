@@ -159,49 +159,6 @@
   z-index: 60;
 }
 
-/* Prose-link tap target. Gives a link that sits INSIDE a flowing sentence the
-   project's 44px minimum pointer target without changing the sentence.
-
-   WHY NOT `inline-flex min-h-11`: that is the right treatment for a link that
-   owns its own line (the Footer's legal links, the Privacy Policy / Terms email
-   links), but an inline-LEVEL flex box contributes its MARGIN box to line-box
-   height, so inside running prose it inflates the one line it lands on by
-   44px − line-height. Measured in the footer newsletter disclosure: the
-   paragraph grew 98px → 122px at 1280 and 58.5px → 83px at 390, with a single
-   31.75px gap against a uniform 19.50px elsewhere (+62.8%), and the focus ring
-   spilled into the line above.
-
-   HOW THIS WORKS: the link stays `inline`, so it contributes nothing beyond its
-   own text box and the paragraph's rhythm is untouched, while a transparent
-   `::after` overlay — vertically centred on the link's inline box and exactly
-   2.75rem (44px) tall, spanning the link's full inline width — carries the hit
-   area. Because the pseudo-element belongs to the anchor, a press anywhere in
-   that 44px band activates the link. It is painted-empty and positioned, so it
-   wins hit-testing over the surrounding non-positioned prose text without
-   covering any other interactive control (the disclosure paragraphs that use
-   this are plain prose). The link's own focus ring stays tight around the text,
-   which is the visually correct result for a word inside a sentence.
-
-   HOW TO MEASURE IT (the anchor's own rect is deliberately text-sized, so a
-   plain getBoundingClientRect() understates the target): read
-   `getComputedStyle(link, '::after').height` — it is `44px` — or hit-test with
-   `document.elementFromPoint(x, linkCentreY ± 18)`, which resolves to the link.
-
-   Pair it with `whitespace-nowrap` so the link cannot split across two lines; a
-   fragmented inline would leave the overlay tracking only the first fragment. */
-@utility tap-target-44 {
-  position: relative;
-
-  &::after {
-    content: "";
-    position: absolute;
-    inset-inline: 0;
-    top: 50%;
-    height: 2.75rem;
-    margin-block-start: -1.375rem;
-  }
-}
-
 /**
  * Third-party overrides — Swiper pagination touch targets (M12).
  *
@@ -214,21 +171,105 @@
  * Swiper's own single-class rule, so this wins regardless of stylesheet order,
  * and it is intentionally OUTSIDE Tailwind's `@layer base` because Swiper's
  * imported CSS is un-layered and would otherwise take precedence over a layered
- * rule. This rule owns GEOMETRY ONLY — size, padding, box sizing and fill
- * clipping. It declares no colour and no opacity, so the painted dot still
- * resolves from Swiper's own custom properties; the block immediately below
- * re-points those properties at brand values and raises the inactive bullet past
- * the 3:1 non-text-contrast floor. The two rules therefore COMPOSE rather than
- * compete — geometry here, colour and opacity there — and the ~26px tap target
- * survives that recolouring untouched. Applies to every carousel (Gallery,
+ * rule. This rule owns the BASE GEOMETRY ONLY — size, padding, box sizing and
+ * fill clipping, for every bullet in either state. It declares no colour and no
+ * opacity, so the painted dot still resolves from Swiper's own custom properties;
+ * the colour block further below re-points those properties at brand values and
+ * raises the inactive bullet past the 3:1 non-text-contrast floor. The rules
+ * therefore COMPOSE rather than compete — base geometry here, the active-bullet
+ * size step next, colour and opacity after that — and the ~26px tap target
+ * survives all of it untouched. Applies to every carousel (Gallery,
  * TestimonialSlider).
+ *
+ * TWO SELECTORS, ONE RULE: `.swiper …` covers a pagination Swiper renders inside
+ * the slider root (Gallery's default), and `.swiper-pagination …` covers one a
+ * carousel hosts OUTSIDE that root by supplying `pagination.el`
+ * (TestimonialSlider's control cluster) — where the descendant-of-`.swiper` form
+ * simply would not match, silently returning the bullets to 8px. Both score one
+ * notch above Swiper's own single-class `.swiper-pagination-bullet` AND above its
+ * `button&` reset (`button.swiper-pagination-bullet`), so the geometry holds for
+ * the real `<button>` bullets in either position. Declared once with a selector
+ * list rather than copied, so the two positions can never drift apart.
  */
-.swiper .swiper-pagination-bullet {
+.swiper .swiper-pagination-bullet,
+.swiper-pagination .swiper-pagination-bullet {
   width: 0.625rem; /* 10px painted dot */
   height: 0.625rem;
   padding: 0.5rem; /* 8px transparent ring → 26px tap target */
   box-sizing: content-box;
   background-clip: content-box;
+  /* Align every bullet by its CENTRE rather than by its baseline. Swiper renders
+     each bullet as an EMPTY inline-block <button>, and Chrome derives such a
+     button's baseline from its content box — i.e. from (padding-top + content
+     height), which the active-bullet rule below deliberately changes (6 + 14 = 20
+     against 8 + 10 = 18). Under the default `vertical-align: baseline` that 2px
+     difference lifted the current bullet 2px above its neighbours, so the two
+     bullets involved jumped vertically every time the current slide changed
+     (measured: y 474.984 → 472.984). Centre alignment makes the two boxes share one
+     vertical position, so the size cue moves along the row without a single pixel of
+     movement in EITHER axis. It also keeps the two dot sizes concentric, which is
+     what makes the step read as growth rather than as a nudge. */
+  vertical-align: middle;
+}
+
+/**
+ * Third-party overrides — Swiper pagination CURRENT-slide cue (non-colour state).
+ *
+ * OVERRIDES: the painted-dot size for the active bullet only. Swiper itself gives
+ * `.swiper-pagination-bullet-active` nothing but `opacity: 1` and a different
+ * `background`, and the geometry rule directly above deliberately paints every
+ * bullet at one size — so before this rule the current slide was signalled by
+ * COLOUR ALONE. Measured in-browser at 1440x900 and 390x844: active and inactive
+ * bullets had identical 26x26 boxes, identical 10px painted dots, identical
+ * `border-radius: 50%`, and `outline`, `box-shadow`, `transform` and `scale` all
+ * `none` on both. The only difference was the fill — `rgb(37, 99, 235)` at opacity
+ * 1 against `rgb(71, 85, 105)` at 0.7 (rendering `rgb(125, 135, 149)`) — which is
+ * only 1.42:1 ACTIVE-VS-INACTIVE and collapses to a ~10% lightness step in
+ * greyscale (measured luma 96 vs 134).
+ *
+ * CLOSES: "never use colour alone to communicate state" for both carousels. The
+ * cue is pure GEOMETRY: the painted dot grows from 10px to 14px (+40% diameter,
+ * ~+96% area), which reads as a size step in monochrome, under any colour-vision
+ * deficiency, and in strong sunlight. Each bullet already carries `aria-current`
+ * and a "Go to slide N" name, so the programmatic channel was never the gap — the
+ * visual one was.
+ *
+ * WHY IT CANNOT SHIFT LAYOUT: the padding shrinks by exactly as much as the dot
+ * grows, so the BORDER BOX is unchanged — 14px + (2 x 6px) = 26px, identical to the
+ * inactive 10px + (2 x 8px) = 26px. The arithmetic, not a measurement, is the
+ * guarantee: no bullet can change width when the active slide moves, so the
+ * centred row cannot re-flow under the pointer. The ~26px tap target (above the
+ * WCAG 2.5.8 24px floor) is preserved for every bullet in both states, and the
+ * content-box corner radius stays 13px − 6px = 7px on a 14px box, i.e. still 50%,
+ * so the dot stays perfectly round.
+ *
+ * WHY NOT AN OUTLINE OR A RING: an `outline` here would be actively harmful. This
+ * zone is UN-LAYERED, so it outranks the single global `:focus-visible` outline in
+ * `@layer base` regardless of specificity — and these bullets are real, focusable
+ * `<button>`s. A permanent active outline would therefore swallow the focus ring on
+ * the current bullet and cost WCAG 2.4.7. A `box-shadow` ring is not clipped by
+ * `background-clip: content-box` either, so it would paint around the full 26px tap
+ * box rather than the 10px dot and read as a stray focus ring. Growing the dot
+ * avoids both problems and touches no colour, so the 3:1 non-text-contrast work in
+ * the colour block below stays exactly as measured.
+ *
+ * WHY THESE SELECTORS AND THIS POSITION: `.swiper .swiper-pagination-bullet-active`
+ * scores (0,2,0), which beats Swiper's own `.swiper-pagination-bullet-active`
+ * (0,1,0) and its `button.swiper-pagination-bullet { padding: 0 }` (0,1,1)
+ * outright. It TIES with the geometry rule above, which is also (0,2,0), so it must
+ * stay BELOW it in source order — that tie is resolved by position, and this rule
+ * has to win it. The cue is declared for BOTH pagination positions, exactly as the
+ * geometry rule above is: `.swiper …` covers the in-slider band Gallery keeps, and
+ * `.swiper-pagination …` covers the band TestimonialSlider hands to Swiper through
+ * `pagination.el` inside its control cluster — an element that is NOT a descendant
+ * of `.swiper`, so the first selector alone would leave that carousel signalling
+ * the current slide by colour alone again.
+ */
+.swiper .swiper-pagination-bullet-active,
+.swiper-pagination .swiper-pagination-bullet-active {
+  width: 0.875rem; /* 14px painted dot — the size step that carries the state */
+  height: 0.875rem;
+  padding: 0.375rem; /* 6px ring: 14 + 12 = 26px, the same box as an inactive bullet */
 }
 
 /**
@@ -257,9 +298,11 @@
  * and fails the 3:1 floor for a control that communicates position. The brand
  * `muted` token at `0.7` opacity measures ≈ 3.59:1 on white and ≈ 3.50:1 on the
  * `surface` band (carousels appear on both) while staying visibly subordinate to
- * the saturated `primary-600` active bullet, so active/inactive remain easy to
- * tell apart. Only color and opacity are set here; the bullet geometry above —
- * the 10px dot and its ~26px tap target — is untouched.
+ * the saturated `primary-600` active bullet. Note what this block does NOT claim:
+ * active-vs-INACTIVE measures only ≈ 1.42:1, so colour is a reinforcement here and
+ * never the state signal — that job belongs to the 10px → 14px size step declared
+ * above. Only color and opacity are set here; the bullet geometry above — the two
+ * dot sizes and the ~26px tap target they share — is untouched.
  */
 .swiper,
 .swiper-button-prev,
@@ -335,14 +378,53 @@
  * band. The card shadow's 14px tail renders inside that gap instead of being cut.
  *
  * Scoped to a DIRECT child so it applies only where Swiper renders the pagination
- * inside the slider, which is its default. A carousel that supplies its own
- * `pagination.el` elsewhere positions that element itself and reserves no space
- * here. Swiper's `.swiper-pagination-lock` (`display: none` for a locked,
- * single-slide pagination) still removes the band entirely, margin included.
+ * inside the slider, which is its default (Gallery). A carousel that supplies its
+ * own `pagination.el` elsewhere lays that element out itself and reserves no space
+ * here — see the rule immediately below. Swiper's `.swiper-pagination-lock`
+ * (`display: none` for a locked, single-slide pagination) still removes the band
+ * entirely, margin included.
  */
 .swiper > .swiper-pagination {
   position: static;
   margin-block-start: 1rem;
+}
+
+/**
+ * Third-party overrides — Swiper pagination hosted OUTSIDE the slider root.
+ *
+ * OVERRIDES: `.swiper-pagination { position: absolute }` — un-layered, and the one
+ * declaration that decides where the band lands.
+ *
+ * CLOSES: the pagination band being torn out of the control cluster. When a
+ * carousel supplies `pagination.el` (TestimonialSlider hands Swiper an element
+ * inside its single control cluster so the dots, the arrows and the pause toggle
+ * share one DOM parent), Swiper stops rendering its own band inside `.swiper` and
+ * populates that element instead — but its base rule still applies, so the element
+ * would compute `position: absolute` and resolve against the nearest positioned
+ * ancestor, which for this component is the `relative` outer wrapper that also
+ * contains the slides. The band would therefore paint back over the cards, at
+ * `bottom: 8px` and `z-index: 10`, exactly the defect the placement rule above
+ * closes for the in-slider case. Returning it to normal flow lets the cluster's
+ * own flex layout place it, so the overlap is structurally impossible again.
+ *
+ * The doubled class is deliberate and load-order-proof for the same reason as
+ * `.swiper.swiper` above: Swiper's `.swiper-pagination` is a single class, so a
+ * plain `.swiper-pagination` override would tie on specificity and fall through to
+ * source order — which Swiper wins, because its stylesheet is bundled into a
+ * lazily loaded chunk whose `<link>` is appended AFTER the statically linked entry
+ * stylesheet this file compiles into.
+ *
+ * Only `position` is reset. Swiper's `bottom`/`top`/`left` offsets are inert on a
+ * static element; its `width: 100%` and `text-align: center` still centre the
+ * bullets in whatever box the cluster gives them; and its `z-index: 10` keeps the
+ * band on the sanctioned Swiper tier of the stacking ledger (skip link 1000 >
+ * route progress 60 > header/modals 50 > conversion widgets 40 > Swiper 10). No
+ * margin is added here — the cluster owns the spacing between its own rows, so
+ * adding one would double the gap. Harmless for the in-slider case, which the
+ * `.swiper > .swiper-pagination` rule above already sets to `static`.
+ */
+.swiper-pagination.swiper-pagination {
+  position: static;
 }
 
 /**
@@ -408,22 +490,9 @@
  * Registered in Tailwind's `base` layer so utility classes always win.
  */
 @layer base {
-  /* Smooth in-page navigation (anchor jumps, scroll-to-top).
-     `scroll-padding-top` keeps the sticky header from swallowing whatever the
-     browser scrolls to. Without it every scroll-into-view aligned its target
-     flush with the top of the scrollport — i.e. underneath the header, which is
-     a constant 65px tall and `sticky top-0 z-50`: a fragment navigation to
-     `/contact#contact-form-heading` left 27.5 of the heading's 28px hidden, and
-     the focus move onto ContactForm's `role="status"` result panel hid 65 of its
-     108px including the whole of its "Your message is ready to send" `<h3>`.
-     This is deliberately declared once here, on the scroll container, rather
-     than as a `scroll-mt-*` utility per target: it covers hash links, the skip
-     link and every programmatic `focus()`/`scrollIntoView()` in the app, and it
-     cannot be forgotten by a future in-page anchor. The extra 0.5rem leaves the
-     target visibly clear of the header edge rather than touching it. */
+  /* Smooth in-page navigation (anchor jumps, scroll-to-top). */
   html {
     scroll-behavior: smooth;
-    scroll-padding-top: calc(var(--header-height) + 0.5rem);
   }
 
   /* Document defaults: reset margin, full-height canvas, brand surface/text,
@@ -502,14 +571,6 @@
   :root {
     --cta-sticky-height: 4rem;
     --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
-    /* Sticky-header height, the offset anything scrolled into view has to clear.
-       65px measured: Navbar's 64px (`h-16`) row plus the 1px `border-b` hairline
-       that lives in the bar's BASE classes — deliberately not in its scroll
-       state — so the header is exactly this tall at every scroll position and on
-       every route, which is what makes a single constant correct here. Consumed
-       by `html { scroll-padding-top }` above; keep the two in lock-step if the
-       nav row's height ever changes. */
-    --header-height: 4.0625rem;
   }
 
   /* Route-change / skip-link focus target. The `<main id="main">` landmark

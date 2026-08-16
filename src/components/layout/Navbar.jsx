@@ -83,10 +83,7 @@ import logo from '../../assets/logo.svg'
  *   • The hamburger exposes `aria-label`, `aria-expanded` and
  *     `aria-controls="mobile-nav"` (matching the drawer `id`).
  *   • While the drawer is open, focus moves in, is trapped (Tab / Shift+Tab
- *     wrap), Esc closes it, and focus returns to the hamburger on close —
- *     except on the resize-to-`lg` auto-close, where the hamburger has itself
- *     become `lg:hidden` and so cannot take focus; focus then lands on the
- *     `<main>` landmark instead of falling to `<body>`. The
+ *     wrap), Esc closes it, and focus returns to the hamburger on close. The
  *     rest of the application (`#root`) is marked `inert` meanwhile, so the ~69
  *     background focusables are removed from BOTH the tab order and the
  *     accessibility tree (defence-in-depth alongside the manual Tab trap, and
@@ -246,20 +243,6 @@ function Navbar({ className }) {
       // and focusing an element inside an inert subtree is a no-op.
       if (rootEl) rootEl.inert = false
       if (toggle) toggle.focus()
-      // Fallback for the one close path where the line above cannot land: the
-      // viewport-grew-to-`lg` auto-close (see the matchMedia listener). The
-      // hamburger is `lg:hidden`, so by the time this cleanup runs it is already
-      // `display: none` and `.focus()` on it is a silent no-op — focus would drop
-      // to <body>, restarting the tab order at the skip link and losing the
-      // reader's place. `<main>` carries `tabindex="-1"` (Layout declares it for
-      // exactly this kind of programmatic focus, and the skip link targets the
-      // same element), so focus always ends up on a visible element inside the
-      // page. `preventScroll` keeps a resize from also yanking the page to the
-      // top: `#main` starts directly below the sticky header, so a default
-      // scroll-into-view would jump the reader to the very top of the document.
-      if (document.activeElement !== toggle) {
-        document.getElementById('main')?.focus({ preventScroll: true })
-      }
     }
   }, [open])
 

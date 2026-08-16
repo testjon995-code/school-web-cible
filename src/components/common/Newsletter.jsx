@@ -26,7 +26,8 @@ import siteConfig from '../../data/siteConfig.js'
  * address was added to any list. The mailto is opened SYNCHRONOUSLY (no
  * artificial `setTimeout`, so there is no timer to leak across unmount), and the
  * entered email is NOT cleared afterwards, preserving recovery data. A
- * `submittingRef` guards a double-submit and is re-armed when the field changes.
+ * `submittingRef` guards a double-submit and is re-armed wherever the finished
+ * submission is reset — on a field edit and on a route change (see below).
  *
  * Bounded input (M06): the email is validated and length-capped by the shared
  * `emailRules`, carries a native `maxLength`, and is defensively clamped with
@@ -39,18 +40,25 @@ import siteConfig from '../../data/siteConfig.js'
  * (`tabIndex={-1}`) so keyboard users are taken to the confirmation rather than
  * left on the field.
  *
- * Status LIFECYCLE — the outcome message describes one submission, not the
- * session: `status` returns to `'idle'` both when the field is edited and when
- * the route changes. Without those two resets the confirmation was permanent —
- * it stayed on screen while the visitor typed an invalid address and submitted
- * again, so a stale "we've opened your email app" panel and a live
- * `role="alert"` validation error were displayed and announced at the same time,
- * and because the Footer lives in the persistent `Layout` the panel (and the
- * typed value) also followed the visitor onto every other route for the rest of
- * the session. Editing the field is the same signal that re-arms the
- * duplicate-submit guard, so both resets share one composed `onChange`; the
- * route reset is a `pathname` effect. Neither touches validation state — a
- * pending error keeps its own lifecycle in react-hook-form.
+ * Status LIFECYCLE — a submission is retired as a WHOLE, and by two signals. The
+ * outcome message describes one submission rather than the session, so `status`
+ * returns to `'idle'` both when the field is edited and when the route changes.
+ * Without those two resets the confirmation was permanent — it stayed on screen
+ * while the visitor typed an invalid address and submitted again, so a stale
+ * "we've opened your email app" panel and a live `role="alert"` validation error
+ * were displayed and announced at the same time, and because the Footer lives in
+ * the persistent `Layout` the panel (and the typed value) also followed the
+ * visitor onto every other route for the rest of the session.
+ *
+ * The `submittingRef` duplicate-submit guard is the OTHER HALF of that same
+ * submission's state, so both signals now clear both halves — never one without
+ * the other. Retiring the message alone left the form looking ready while the
+ * guard was still latched, and since this component never unmounts on a
+ * client-side navigation nothing else would ever have released it: Subscribe on
+ * the next page returned at the guard and did nothing, silently. Editing the
+ * field re-arms both through one composed `onChange`; navigating re-arms both in
+ * the `pathname` effect. Neither signal touches validation state — a pending
+ * error keeps its own lifecycle in react-hook-form.
  *
  * Privacy (M07): a short disclosure beneath the form explains that subscribing
  * opens the visitor's email app with their address pre-filled and links to the
@@ -83,18 +91,21 @@ export default function Newsletter({
     handleSubmit,
     formState: { errors },
   } = useForm({ mode: 'onBlur', defaultValues: { email: '' } })
-  const [status, setStatus] = useState('idle') // 'idle' | 'opened' | 'error'
-  // The committed route. Used only to clear a finished outcome message when the
-  // visitor navigates: this component is mounted by the Footer inside the
-  // persistent Layout, so it never unmounts on a client-side navigation.
+  // The committed route, read so a client-side navigation can retire a finished
+  // submission (see the `pathname` effect below). The Footer mounts this form in
+  // the persistent Layout, so it never unmounts to reset itself.
   const { pathname } = useLocation()
+  const [status, setStatus] = useState('idle') // 'idle' | 'opened' | 'error'
   // Unique-but-semantic field id. Keeps the readable `newsletter-email` intent
   // while guaranteeing uniqueness via useId(), so the form can be rendered more
   // than once on a single page (e.g. the persistent Footer AND a page section)
   // without producing duplicate ids / broken <label> association (WCAG AA).
   const generatedId = useId()
   const fieldId = `newsletter-email-${generatedId}`
-  // Synchronous duplicate-submit guard (M05); re-armed on field change below.
+  // Synchronous duplicate-submit guard (M05); re-armed by BOTH signals that retire
+  // a submission — a field edit (the composed `onChange` below) and a route change
+  // (the `pathname` effect below) — so it is never left latched on a form the
+  // visitor can still see and press.
   const submittingRef = useRef(false)
   // The status message, focused on a successful open so keyboard/AT users land
   // on the confirmation rather than the field (m14).
@@ -104,12 +115,30 @@ export default function Newsletter({
     if (status === 'opened' && statusRef.current) statusRef.current.focus()
   }, [status])
 
-  // Clear a finished outcome message on navigation. The message reports one
-  // submission; carrying it across routes would assert a completed handoff on
-  // pages the visitor never submitted from. `setStatus('idle')` on an already
-  // idle state is a no-op React bails out of, so the initial render and every
-  // navigation that follows a fresh form cost nothing.
+  // Retire a finished submission on navigation — BOTH halves of it. The outcome
+  // message reports one submission, and carrying it across routes would assert a
+  // completed handoff on pages the visitor never submitted from; but the
+  // duplicate-submit guard is the other half of that same submission's state, so
+  // clearing only the message left the form LOOKING ready while `submittingRef`
+  // was still latched. Because the Footer lives in the persistent `Layout`, this
+  // component never unmounts on a client-side navigation, so nothing else would
+  // ever have released that latch: pressing Subscribe on the next page returned at
+  // the guard and did nothing at all — silently, with no message and no error.
+  // Editing the field re-arms both together for exactly the same reason (see the
+  // composed `onChange` below); navigating is the second signal that the previous
+  // submission is over, so it re-arms both as well.
+  //
+  // Re-arming here is safe rather than a licence to double-submit: the mailto is
+  // opened SYNCHRONOUSLY inside `onSubmit`, so by the time any navigation can be
+  // committed the handoff has already completed and the guard has no in-flight work
+  // left to protect. A press after navigating is a genuine new attempt, which is
+  // precisely what the guard is supposed to allow.
+  //
+  // `setStatus('idle')` on an already-idle state is a no-op React bails out of, and
+  // writing `false` to an already-false ref costs nothing, so the initial render and
+  // every navigation that follows a fresh form remain free.
   useEffect(() => {
+    submittingRef.current = false
     setStatus('idle')
   }, [pathname])
 
@@ -203,21 +232,17 @@ export default function Newsletter({
       </form>
 
       {/* Privacy disclosure at the point of handoff (M07). The link carries the
-          shared `tap-target-44` utility (src/index.css) rather than the
-          `inline-flex min-h-11` treatment used where a link owns its own line:
-          this one sits mid-sentence, and an inline-level flex box contributes its
-          margin box to line-box height, which inflated exactly one gap in this
-          paragraph by 12.25px (+62.8%) and pushed the focus ring into the line
-          above. `tap-target-44` keeps the link `inline` — so the paragraph's
-          rhythm is untouched — and hangs the 44px pointer target on a transparent
-          `::after`; `whitespace-nowrap` keeps "Privacy Policy" on one line so that
-          overlay always covers the whole link. The anchor's own rect is therefore
-          text-sized by design: measure the target via
-          getComputedStyle(link, '::after').height or a hit test. */}
+          project's established 44px hit-area treatment — `inline-flex min-h-11
+          items-center` — the same one the Footer's legal links and the Privacy
+          Policy / Terms contact addresses use, so every in-prose link that has to
+          clear the touch-target floor does it the one way (M12). `min-h-11` is a
+          declared step on the 8px scale (11 × 0.25rem = 44px), so no arbitrary
+          value is involved, and `items-center` re-centres the label inside the
+          taller box. */}
       <p className="mt-3 text-xs leading-relaxed text-muted">
         Subscribing opens your email app with your address pre-filled and is sent to us via your email provider
         under their terms. See our{' '}
-        <Link to="/privacy-policy" className="tap-target-44 whitespace-nowrap font-medium text-primary-700 underline hover:text-primary-800">
+        <Link to="/privacy-policy" className="inline-flex min-h-11 items-center font-medium text-primary-700 underline hover:text-primary-800">
           Privacy Policy
         </Link>
         .
