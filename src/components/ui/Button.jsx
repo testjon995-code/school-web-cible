@@ -39,11 +39,14 @@ import { cn } from '../../lib/cn.js'
  *
  * Interactive states: hover is declared per variant, keyboard focus is the ONE
  * shared `:focus-visible` ring on the base classes, and disabled is the base's
- * native-`disabled` treatment. Pressed feedback is inherent to the filled and
- * `outline` variants (a fill swap or a tint is already visible while the control
- * is held); `tertiary` rests with no fill and no border, so it carries an explicit
- * pressed treatment whose underline thickening keeps the press perceptible on
- * touch, where no hover phase exists.
+ * native-`disabled` treatment. Pressed feedback is declared on EVERY variant,
+ * because hover does not exist on touch and a tap with no acknowledgement reads as
+ * a dead control: each filled variant steps one rung further down its own ramp
+ * than its hover, `outline` deepens its wash AND its label together (the wash
+ * alone would drop its primary-600 text below AA), and `tertiary` — which rests
+ * with no fill and no border to deepen — pairs its wash with a thickened
+ * underline, so its press stays perceptible without colour vision. Every pressed
+ * treatment is paint-only, so none of them moves the box.
  *
  * Sizes sit on the 8px scale and every size is at least 44px tall, with a minimum
  * width floor on the shared base, so all renderings — including icon-only — meet
@@ -80,17 +83,41 @@ const base =
 // `tertiary` lowers emphasis by removing the fill and the border, NOT by
 // lightening the label — its label is a DARKER primary than `outline`'s, the
 // light-fill/dark-text direction `Badge` also uses. Because it rests with no fill
-// and no border, its hover and pressed feedback is authored rather than inherited.
+// and no border, its hover and pressed steps must LAY DOWN a wash and a shape cue
+// rather than deepen one that is already there, which is why it is the one variant
+// whose pressed step also thickens its underline.
 // When editing it: keep the underline unprefixed (a hover-only underline fails the
 // non-colour-cue rule), keep a pressed cue that is not colour-only, and add no
 // height, padding or leading utility, which would breach the ≥44px touch target
 // the base classes guarantee — text-decoration and background are non-layout,
 // which is why they are the safe choices.
+//
+// Pressed feedback is declared on EVERY variant, not only `tertiary`. Hover does
+// not exist on touch, so without an `active:` step a tap produces no visual
+// acknowledgement at all until the navigation completes — which on a slow route
+// chunk reads as a dead control and invites a second tap. Each filled variant
+// therefore steps ONE rung further down its own ramp than its hover
+// (primary 600→700→800, secondary 700→800→900, accent 700→800→900), and `outline`
+// deepens its wash from primary-50 to primary-100. Every pressed pairing clears AA
+// for normal text — measured, not estimated: white on primary-800 = 8.72:1, on
+// secondary-900 = 9.37:1, on accent-900 = 9.11:1, so each press deepens the surface
+// and legibility improves rather than degrades. `outline` is the one case where the
+// wash alone is NOT enough — primary-600 on primary-100 is 4.24:1 and FAILS the
+// 4.5:1 floor — so it deepens its label to primary-700 in the same step (5.49:1).
+// Never pair `outline`'s resting primary-600 label with a primary-100 or darker fill.
+// Scope note: `active:` is a TRANSIENT press acknowledgement, not a persistent
+// state, so a colour-only cue is appropriate here; the states this design system
+// treats as information — active route, disabled, and the emphasis tier itself —
+// each keep their own non-colour channel (underline, opacity, fill-vs-border).
+// Use only `bg-*`/`text-*` steps from the @theme ramps, which are paint-only; never
+// a transform, size, border-width or shadow utility, which would move the box and
+// breach both the ≥44px target and the zero-layout-shift guarantee.
 const variants = {
-  primary: 'bg-primary-600 text-white hover:bg-primary-700',
-  secondary: 'bg-secondary-700 text-white hover:bg-secondary-800',
-  accent: 'bg-accent-700 text-white hover:bg-accent-800',
-  outline: 'border-2 border-primary-600 bg-transparent text-primary-600 hover:bg-primary-50',
+  primary: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800',
+  secondary: 'bg-secondary-700 text-white hover:bg-secondary-800 active:bg-secondary-900',
+  accent: 'bg-accent-700 text-white hover:bg-accent-800 active:bg-accent-900',
+  outline:
+    'border-2 border-primary-600 bg-transparent text-primary-600 hover:bg-primary-50 active:bg-primary-100 active:text-primary-700',
   tertiary:
     'bg-transparent text-primary-700 underline underline-offset-4 hover:bg-primary-50 hover:text-primary-800 active:bg-primary-100 active:decoration-2',
 }
@@ -111,23 +138,76 @@ const SAFE_ABSOLUTE_SCHEME = /^(https?:|tel:|mailto:)/i
 const HAS_URL_SCHEME = /^[a-z][a-z0-9+.-]*:/i
 // http(s) or protocol-relative "//" → treated as an external, new-tab link.
 const IS_EXTERNAL = /^(https?:)?\/\//i
+// Characters the URL parser silently DISCARDS from anywhere inside a URL: ASCII
+// tab (U+0009), LF (U+000A) and CR (U+000D). They are stripped before any scheme
+// test so the allowlist below inspects the string the browser will actually act
+// on: "java\tscript:alert(1)" reaches the parser as javascript:alert(1), yet with
+// the tab still in place it matches NEITHER SAFE_ABSOLUTE_SCHEME nor
+// HAS_URL_SCHEME — both anchor a scheme of only [a-z0-9+.-] at index 0 — so it
+// would otherwise fall through the final `return href` and be waved past as a
+// scheme-less relative reference.
+const URL_IGNORED_CHARS = /[\t\n\r]/g
+
+/**
+ * Report whether a candidate href still carries a control character after the
+ * parser-ignored ones have been stripped.
+ *
+ * A leading NUL is the classic scheme-hiding trick, and no control character is
+ * ever legitimate in an href this application authors — the draft `mailto:` and
+ * `wa.me` URLs are percent-encoded at their call sites, so a real newline arrives
+ * as `%0A`. Such a candidate is therefore rejected outright rather than
+ * normalized into something that merely looks safe.
+ *
+ * Written as code-point arithmetic rather than a regex character class on
+ * purpose: a literal control-character class is exactly the pattern
+ * `no-control-regex` (correctly) treats as a likely mistake, and naming the
+ * numeric ranges makes the intent unambiguous — C0 is 0x00–0x1F, DEL is 0x7F and
+ * C1 is 0x80–0x9F. Iterating with `for…of` walks code points, so a surrogate pair
+ * is never mistaken for two lone units.
+ *
+ * @param {string} value - A candidate href, already stripped of tab/LF/CR.
+ * @returns {boolean} `true` when any C0, DEL or C1 character remains.
+ */
+function hasControlChar(value) {
+  for (const char of value) {
+    const code = char.codePointAt(0)
+    if (code <= 0x1f || (code >= 0x7f && code <= 0x9f)) return true
+  }
+  return false
+}
 
 /**
  * Validate and normalize an `href` against a strict protocol allowlist.
  *
- * Returns the trimmed href when it is safe to place on an anchor — an `http(s):`,
- * `tel:` or `mailto:` absolute URL, or any scheme-less relative reference
- * (`/courses`, `#section`, `?q=1`). Any other explicit scheme (`javascript:`,
- * `data:`, `vbscript:`, …) yields `null`, so a hostile or mistaken caller cannot
- * turn the canonical Button into a script or data-URI injection vector.
+ * Returns the normalized href when it is safe to place on an anchor — an
+ * `http(s):`, `tel:` or `mailto:` absolute URL, or any scheme-less relative
+ * reference (`/courses`, `#section`, `?q=1`). Any other explicit scheme
+ * (`javascript:`, `data:`, `vbscript:`, …) yields `null`, so a hostile or mistaken
+ * caller cannot turn the canonical Button into a script or data-URI injection
+ * vector.
+ *
+ * Obfuscated schemes are normalized BEFORE the allowlist runs, so the check sees
+ * the URL the browser will act on rather than the literal the caller passed: the
+ * three characters the URL parser discards are stripped (`java\tscript:` →
+ * `javascript:` → rejected), and any surviving C0/DEL/C1 control character
+ * rejects the value outright. Without that step React 19 would be the last thing
+ * standing between such a value and the DOM — and it *throws* on a `javascript:`
+ * href, so an obfuscated value would take the whole route down instead of
+ * degrading. Here it degrades: the control renders as a real, focusable
+ * `<button>` that simply does not navigate.
  *
  * @param {unknown} value - The candidate href.
- * @returns {string|null} The safe href, or `null` when the scheme is disallowed.
+ * @returns {string|null} The safe, parser-normalized href, or `null` when the
+ *   value carries a disallowed scheme or a control character.
  */
 function sanitizeHref(value) {
   if (typeof value !== 'string') return null
-  const href = value.trim()
+  // Strip the parser-ignored characters FIRST, then trim: in this order a value
+  // that pads its scheme with a mixture of tabs, newlines and spaces
+  // (" \t javascript:…") also collapses, which trimming alone would leave intact.
+  const href = value.replace(URL_IGNORED_CHARS, '').trim()
   if (!href) return null
+  if (hasControlChar(href)) return null // a surviving control character → unsafe
   if (SAFE_ABSOLUTE_SCHEME.test(href)) return href
   if (HAS_URL_SCHEME.test(href)) return null
   return href

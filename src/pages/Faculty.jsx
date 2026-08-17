@@ -31,8 +31,10 @@
  *                        (M03, AAP §0.7.2); it retires automatically once
  *                        `siteConfig.representativeContent` is cleared.
  * - `<CTASection>`     — the reusable admission call-to-action that closes every
- *                        page (Fill Admission Form / Book Free Counseling /
- *                        WhatsApp / Call), keeping conversion actions reachable.
+ *                        page, offering its four CHANNELS (admission, advisor,
+ *                        WhatsApp, call) so conversion actions stay reachable. The
+ *                        wording of those actions is owned solely by CTASection, so
+ *                        it is described here by channel and never by label text.
  *
  * Accessibility (WCAG AA): exactly one `<h1>` (the section heading); the faculty
  * grid is a list of repeated cards whose names are `<h3>`s. A visually-hidden

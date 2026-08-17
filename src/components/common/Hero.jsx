@@ -108,8 +108,17 @@ function Hero({
             so the above-fold h1, lead and CTAs paint at once (see the LCP invariant in
             the JSDoc). */}
         <div className="flex flex-col gap-6">
-          {/* Eyebrow pill: the canonical Badge-primary token pairing, both defined
-              @theme tokens and AA-safe together. */}
+          {/* Eyebrow pill. Not the `Badge` primitive and deliberately not a second
+              copy of it either: `Badge` fixes its own type scale at `px-4 py-2
+              text-xs font-semibold`, which is a meta-label built to sit ON a card,
+              whereas this label sits above a 4xl/5xl display headline and needs the
+              larger `text-sm font-medium` step to read as its eyebrow. Only the
+              typography step differs — the surface is the SAME primary-50 fill and
+              primary-700 text pairing `Badge`'s `primary` variant uses, both @theme
+              tokens and AA-safe together (primary-700 on primary-50 = 6.16:1), and the
+              shape is the same `rounded-full`. Keep it token-only; if a THIRD eyebrow
+              scale is ever needed, add a variant to `Badge` rather than another
+              hand-rolled pill. */}
           <span className="inline-flex w-fit items-center rounded-full bg-primary-50 px-4 py-1 text-sm font-medium text-primary-700">
             {eyebrow}
           </span>

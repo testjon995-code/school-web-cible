@@ -435,8 +435,29 @@
  * Registered in Tailwind's `base` layer so utility classes always win.
  */
 @layer base {
+  /* Smooth in-page navigation (anchor jumps, scroll-to-top).
+
+     `scroll-padding-top` keeps the sticky header from swallowing whatever the
+     browser scrolls to. Without it every scroll-into-view aligns its target flush
+     with the top of the scrollport — i.e. underneath the header, which is a
+     constant 65px tall and `sticky top-0 z-50`. Measured at 390px with the
+     declaration absent: a fragment navigation to `/contact#contact-form-heading`
+     landed the "Send us a message" heading at viewport top -0.5px, hiding 28 of
+     its 28px, and took the adjacent "Name*" field label (20 of 20px) with it,
+     leaving an apparently unlabelled input 6.5px below the header. The same
+     alignment reaches the programmatic paths: ContactForm and AdmissionForm move
+     focus onto their `role="status"` / `role="alert"` result panels, and a default
+     focus scroll puts the panel's own heading behind the header.
+
+     Declared ONCE here, on the scroll container, rather than as a `scroll-mt-*`
+     utility per target: it covers hash links, the skip link and every programmatic
+     `focus()` / `scrollIntoView()` in the application, and it cannot be forgotten
+     by a future in-page anchor. The extra 0.5rem leaves the target visibly clear of
+     the header edge rather than touching it. Keep it in lock-step with
+     `--header-height` below. */
   html {
     scroll-behavior: smooth;
+    scroll-padding-top: calc(var(--header-height) + 0.5rem);
   }
 
   body {
@@ -510,10 +531,18 @@
          `env()` with a 0px fallback. It is intended to lift fixed bottom content
          clear of a device inset where the platform exposes one; where the
          platform exposes none it resolves to 0px and every consumer renders
-         unchanged. */
+         unchanged.
+       • --header-height : the sticky header's height, i.e. the offset anything
+         scrolled into view has to clear. 65px measured in-browser: Navbar's 64px
+         (`h-16`) row plus the 1px `border-b` hairline that lives in the bar's BASE
+         classes — deliberately NOT in its scroll state — so the header is exactly
+         this tall at every scroll position and on every route, which is what makes
+         a single constant correct here. Consumed by `html { scroll-padding-top }`
+         above; keep the two in lock-step if the nav row's height ever changes. */
   :root {
     --cta-sticky-height: 4rem;
     --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+    --header-height: 4.0625rem;
   }
 
   /* Route-change / skip-link focus target. The `<main id="main">` landmark

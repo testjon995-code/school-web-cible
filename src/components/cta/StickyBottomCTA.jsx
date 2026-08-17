@@ -77,13 +77,25 @@ function StickyBottomCTA() {
         'grid grid-cols-3 gap-2 border-t border-border bg-white px-2 pt-2 shadow-float cta-safe-bottom',
       )}
     >
+      {/* Icon sizing (do not drop `shrink-0`): `Button`'s base is an `inline-flex`
+          row, so a glyph's default `flex-shrink: 1` lets it donate width whenever the
+          label needs more than the third-of-viewport column has — and an SVG is a
+          replaced element with an intrinsic aspect ratio, so it loses width instead of
+          the text wrapping. Measured at 320px before this was pinned: the WhatsApp
+          glyph, whose label is the longest of the three, computed 0.92×16 — present in
+          the DOM but effectively invisible — and 14.25×16 at 360px, while the shorter
+          "Call" label left its phone glyph untouched at 16×16. Since a project rule
+          requires the WhatsApp and Call actions to be PROMINENT on mobile, a glyph
+          that silently collapses at the narrowest phone width defeats the rule at
+          exactly the width it matters most. This is the same convention the contact
+          cards and the footer use for a leading icon inside a flex row. */}
       <Button href={siteConfig.phoneHref} variant="primary" size="md" className="w-full px-2 text-sm">
-        <FaPhone aria-hidden="true" className="h-4 w-4" />
+        <FaPhone aria-hidden="true" className="h-4 w-4 shrink-0" />
         Call
       </Button>
 
       <Button href={whatsappHref} variant="accent" size="md" className="w-full px-2 text-sm">
-        <FaWhatsapp aria-hidden="true" className="h-4 w-4" />
+        <FaWhatsapp aria-hidden="true" className="h-4 w-4 shrink-0" />
         WhatsApp
       </Button>
 

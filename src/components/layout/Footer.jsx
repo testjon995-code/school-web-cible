@@ -90,11 +90,40 @@ function Footer({ className }) {
   return (
     <div className={cn('bg-primary-900 text-white', className)}>
       {/* Main grid — brand + contact, grouped navigation, and newsletter.
-          One column on mobile, two at `md`, and a 12-track grid at `lg`
-          (4 + 5 + 3) so the three regions align to the 8px layout scale. */}
+          One column on mobile, two at `md`, and a 12-track grid at `lg` so the
+          three regions align to the 8px layout scale.
+
+          Track allocation is 3 + 5 + 4 at `lg` and 4 + 5 + 3 from `xl`, because
+          between 1024 and 1279px a 12-track row is at its narrowest — measured
+          44.6562px per track at 1024 — and at three tracks the newsletter cell is
+          only 214.00px. After the card's own 32px padding and the field's 16px
+          padding plus 1px borders that leaves the email input a 116.00px content
+          box, while its `you@example.com` placeholder measures 144.25px in Inter at
+          16px: it overflowed by 28.25px and rendered as "you@example." with
+          `text-overflow: clip`, so not even an ellipsis signalled the cut. Measured
+          across the band, the placeholder was truncated from 1024 through 1136px —
+          44% of `lg`. Handing the newsletter a FOURTH track there widens the cell to
+          298.67px (a 200.67px input content box, 56.4px of headroom) and fixes it
+          without touching the navigation columns, whose labels ("Science Coaching",
+          "Terms & Conditions") need the width more than the brand block does — the
+          brand block is a logo plus wrapping prose and reflows cleanly at 214px.
+          From `xl` the row is wide enough for the original allocation, so it is
+          restored unchanged and the ≥1280px rendering is byte-identical to before.
+
+          The container query inside `Newsletter` is NOT an alternative to this and
+          must be kept: it is what stops the input and the Subscribe button being
+          forced side by side inside a narrow cell. The two mechanisms address
+          different causes — the query removes width lost to the button, this
+          allocation supplies width the cell never had. They do not collide: an
+          `inline-size` query resolves against the container's CONTENT box (verified
+          in-browser — with 32px of padding per side the flip happens between a 447px
+          and a 448px border box), so the card's query basis is 319.66px at its
+          widest `lg` width and 214px from `xl`, both far under the 384px `@sm`
+          threshold, and the form measured STACKED at 1024, 1100, 1152, 1279, 1280
+          and 1440. */}
       <Container className="grid gap-10 py-16 md:grid-cols-2 lg:grid-cols-12">
         {/* Brand + contact */}
-        <div className="flex flex-col gap-4 lg:col-span-4">
+        <div className="flex flex-col gap-4 lg:col-span-3 xl:col-span-4">
           {/* `self-start` cancels the flex-column cross-axis stretch so the
               logo renders at its natural width (h-10 w-auto) and stays
               left-aligned with the tagline — matching the Navbar treatment. */}
@@ -193,7 +222,7 @@ function Footer({ className }) {
         {/* Newsletter — reused primitive; only a layout className is passed so
             its intentional light `bg-surface` card is preserved (its internal
             text uses dark foreground tokens for AA on that light surface). */}
-        <Newsletter className="lg:col-span-3" />
+        <Newsletter className="lg:col-span-4 xl:col-span-3" />
       </Container>
 
       {/* Representative-content disclosure (M02 / M03, AAP §0.7.2): while the
