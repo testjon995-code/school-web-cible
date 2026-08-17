@@ -11,10 +11,10 @@ import Spinner from '../ui/Spinner.jsx'
 
 /**
  * Layout — the single persistent application shell for the CIBLE School of
- * Language SPA (AAP §0.6.1 Group 5 / §0.6.3 "Layout shell"). It hosts ALL 17
- * pages plus the 404 view: `src/App.jsx` mounts it as the element of a parent
- * route (`<Route element={<Layout/>}>…children…</Route>`), so this component
- * renders a React Router `<Outlet/>` where the active page appears.
+ * Language SPA. It hosts every content route plus the 404 view: `src/App.jsx`
+ * mounts it as the element of a parent route
+ * (`<Route element={<Layout/>}>…children…</Route>`), so this component renders a
+ * React Router `<Outlet/>` where the active page appears.
  *
  * Responsibilities:
  *   • Provides the semantic page landmarks — exactly one `<header>`, one
@@ -56,16 +56,20 @@ import Spinner from '../ui/Spinner.jsx'
  * `<main>`) is preserved and now shares the same visible focus indicator.
  *
  * Sticky header + stacking coordination (IMPORTANT — do not relocate):
- *   • The sticky positioning lives HERE on `<header className="sticky top-0
- *     z-50">`, NOT on Navbar's `<nav>`. A `sticky` element only travels within
- *     its own parent's box; the header's parent is this full-height flex column,
- *     so the header is what actually pins to the top of the scroll container.
- *   • `z-50` is REQUIRED. The header establishes a stacking context, and
- *     Navbar's mobile drawer (rendered inside it as `fixed inset-0 z-50`) must
- *     paint ABOVE the `z-40` floating/sticky conversion widgets. The widgets'
- *     wrapping `<aside>` is statically positioned and creates NO stacking
- *     context, so the widgets keep competing at their own `z-40`; with header
- *     `z-50` > widgets `z-40`, the drawer overlays everything without a portal.
+ *   • The sticky positioning lives HERE on the `<header>`, NOT on Navbar's
+ *     `<nav>`. A `sticky` element only travels within its own parent's box; the
+ *     header's parent is this full-height flex column, so the header is what
+ *     actually pins to the top of the scroll container.
+ *   • The header's `z-50` keeps the pinned bar above the `z-40` conversion
+ *     widgets. Their wrapping `<aside>` is statically positioned and creates no
+ *     stacking context, so the widgets compete at their own `z-40`.
+ *   • The mobile drawer is NOT part of this header's stacking context: Navbar
+ *     renders it through a React portal into `document.body` and marks `#root`
+ *     inert while it is open (see Navbar for that contract). The portal is what
+ *     lets the drawer escape the containing block this header creates, so do not
+ *     "simplify" it back into the header subtree — and note that the drawer's
+ *     layering is therefore settled at the body level, not by the header's
+ *     `z-50`.
  *
  * Sticky footer behaviour: the root is a `flex min-h-screen flex-col` column and
  * `<main>` carries `flex-1`, so `main` grows to absorb spare height and the
@@ -86,11 +90,11 @@ import Spinner from '../ui/Spinner.jsx'
  * resolves. The fallback centres the canonical `Spinner` in a `min-h-screen`
  * box (a native token utility — no arbitrary values) so it reads as a page-level
  * loader rather than a tiny glyph. The `<Outlet/>` is additionally wrapped in an
- * `ErrorBoundary` keyed by pathname (M18), so a rejected/stale page chunk or a
+ * `ErrorBoundary` keyed by pathname, so a rejected/stale page chunk or a
  * page render error surfaces an accessible recovery UI inside the shell and
  * resets on the next navigation.
  *
- * Committed-route binding (m01): `src/App.jsx` drives a controlled
+ * Committed-route binding: `src/App.jsx` drives a controlled
  * `<Routes location={displayLocation}>`, so `useLocation()` here returns the
  * location currently COMMITTED to the screen. The route-change focus move, the
  * polite title announcement and `<ScrollToTop/>` therefore fire when the new
@@ -189,7 +193,7 @@ function Layout() {
             </div>
           }
         >
-          {/* Route render-error safety net (M18): a rejected/stale page chunk
+          {/* Route render-error safety net: a rejected/stale page chunk
               (after `lazyWithRetry` exhausts its retry + one-time reload) or a
               runtime error thrown while a page renders is caught HERE — inside
               the shell — so Navbar, Footer and the conversion widgets stay

@@ -7,12 +7,11 @@ import { useScrollReveal, prefersReducedMotion, fadeUp, staggerContainer } from 
 import courses from '../../data/courses.js'
 
 /**
- * CourseGrid — the responsive, reuse-first grid of course tiles for CIBLE
- * School of Language (AAP §0.6.1 Group 7). It is the single canonical way the
- * catalog is laid out on the page and is consumed by the Home "featured
- * courses" section, the Courses index (with the category filter enabled), and
- * the category landing pages (SpokenEnglish / ScienceCoaching / ComputerCourses,
- * typically pre-filtered via the `items` prop).
+ * CourseGrid — the responsive, reuse-first grid of course tiles for CIBLE School of
+ * Language. It is the single canonical way the catalog is laid out on a page, and it is
+ * consumed by the Home featured-courses band, the Courses index (with the category
+ * filter enabled) and the category landing pages, which pre-filter through the `items`
+ * prop.
  *
  * Composition & reuse (design-system rule: compose ONE canonical primitive,
  * never duplicate markup):
@@ -49,12 +48,10 @@ import courses from '../../data/courses.js'
  *    `initial={false}` (via {@link prefersReducedMotion}), so cards render
  *    directly at their final state with no enter animation at all (WCAG 2.3.3).
  *
- * Styling — 100% token-driven (Tailwind v4 @theme tokens in `src/index.css`);
- * no hardcoded values (only the exempt 0/auto/inherit/currentColor/transparent),
- * spacing on the project's 8px scale (gap-8 between sections, gap-6 grid gap,
- * gap-2 between chips). The grid is the required responsive shape:
- * `grid gap-6 sm:grid-cols-2 lg:grid-cols-3` (1 column on mobile, 2 from `sm`,
- * 3 from `lg`), so there is never horizontal overflow.
+ * Styling — 100% token-driven (Tailwind v4 `@theme` tokens in `src/index.css`), no
+ * hardcoded values (only the exempt 0/auto/inherit/currentColor/transparent), spacing
+ * on the project's 8px scale. The grid runs one column on mobile, two from `sm` and
+ * three from `lg`, so there is never horizontal overflow.
  *
  * Accessibility (WCAG AA):
  *  - The filter is a labeled `role="group"` ("Filter courses by category") and
@@ -73,11 +70,17 @@ import courses from '../../data/courses.js'
  *   category: 'English'|'Science'|'Computer'|'Career',
  *   summary?: string,
  *   duration?: string,
+ *   level?: string,
+ *   eligibility?: string,
+ *   suitableFor?: string,
+ *   prerequisites?: string,
  *   highlights?: string[],
  *   icon?: import('react-icons').IconType,
- * }>} [props.items=courses] Courses to render; defaults to the
- *   `src/data/courses.js` single source of truth. Pass a pre-filtered subset for
- *   the category landing pages.
+ * }>} [props.items=courses] Courses to render; defaults to the `src/data/courses.js`
+ *   single source of truth. Pass a pre-filtered subset for the category landing pages.
+ *   `level`, `eligibility`, `suitableFor` and `prerequisites` are the optional
+ *   discovery fields {@link CourseCard} renders only when present — see the shape
+ *   contract in `src/data/courses.js`.
  * @param {boolean} [props.showFilter=false] When true, renders the category
  *   filter chip group above the grid.
  * @param {string | ((course: object) => string)} [props.ctaTo] Optional CTA
@@ -88,12 +91,13 @@ import courses from '../../data/courses.js'
  *   drive admission instead of self-linking). When omitted, each card falls back
  *   to its category-derived route.
  * @param {string} [props.ctaLabel] Optional CTA label forwarded to every
- *   {@link CourseCard} (e.g. "Apply now"). When omitted, cards use "Learn more".
- * @param {string} [props.className] Extra classes merged LAST via {@link cn}
- *   onto the root wrapper, so a caller can extend or override layout.
- * @param {object} [props] Any other props (`id`, `aria-*`, `data-*`, …) are
- *   forwarded to the root <div>.
+ *   {@link CourseCard} (the category landing pages pass "Apply Now"). When omitted,
+ *   cards use "Learn more".
+ * @param {string} [props.className] Extra classes merged LAST via {@link cn} onto the
+ *   root wrapper, so a caller can extend or override layout.
  * @returns {import('react').ReactElement} The course grid section.
+ *
+ * Any other props (`id`, `aria-*`, `data-*`, …) are forwarded to the root <div>.
  */
 export default function CourseGrid({
   items = courses,
@@ -103,22 +107,20 @@ export default function CourseGrid({
   className,
   ...props
 }) {
-  // Selected category chip; `'All'` (the default) shows every course.
   const [active, setActive] = useState('All')
 
-  // Single, unconditional, top-level reveal hook (satisfies react/rules-of-hooks):
-  // `ref` attaches to the grid; `inView` gates the framer-motion stagger reveal.
+  // One unconditional, top-level reveal hook: `ref` attaches to the grid and `inView`
+  // gates the stagger reveal.
   const { ref, inView } = useScrollReveal()
-  // Synchronous, SSR-safe read of prefers-reduced-motion (plain helper, not a
-  // hook). When true the grid mounts with `initial={false}` — cards appear at
-  // their final state with no reveal animation at all (WCAG 2.3.3).
+  // Synchronous, SSR-safe read of prefers-reduced-motion — a plain helper, not a hook.
+  // When true the grid mounts with `initial={false}`, so cards appear at their final
+  // state with no reveal animation at all (WCAG 2.3.3).
   const reduce = prefersReducedMotion()
 
-  // Categories are derived from the CURRENT items (preserving source order) so a
-  // pre-filtered `items` prop only offers categories it actually contains.
+  // Derived from the CURRENT items, preserving source order, so a pre-filtered `items`
+  // prop only offers categories it actually contains.
   const categories = ['All', ...Array.from(new Set(items.map((c) => c.category)))]
 
-  // Narrow to the active category; `'All'` passes everything through.
   const filtered = active === 'All' ? items : items.filter((c) => c.category === active)
 
   return (
@@ -163,11 +165,8 @@ export default function CourseGrid({
           ))}
         </motion.div>
       ) : (
-        // BLITZY [TOKEN-SNAP]: the brief suggested `text-muted-foreground`, but the
-        // @theme (src/index.css) defines only `--color-muted` (no `-foreground`
-        // alias), so this snaps to `text-muted` (#475569, ~7.5:1 on white — AA
-        // pass) to keep the class token-backed rather than dead. Matches the
-        // Hero / CTASection / BlogCard convention.
+        // The empty state uses the `muted` token, the neutral the @theme actually
+        // defines; there is no `-foreground` alias, so that variant would emit no CSS.
         <p className="text-center text-muted">No courses in this category yet.</p>
       )}
     </div>

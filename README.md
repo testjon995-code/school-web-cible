@@ -135,9 +135,11 @@ sticky CTA bar):
    statistics, testimonials, events/content, and a closing admission
    call-to-action. Statistics land after the value story rather than above it,
    and every band is composed from the existing primitives — no new component
-   was added for any of them. The student-success and events bands surface the
-   same **representative** records as their dedicated pages and carry the in-app
-   demo-content notice (see [Limitations](#limitations)).
+   was added for any of them. Five bands surface **representative** content — the
+   trust band's batch timings, the course grid's discovery fields, the "why choose
+   CIBLE" differentiators, the student-success records and the events fixtures —
+   and each carries the in-app demo-content notice at that band (see
+   [Limitations](#limitations)).
 2. **About** — the institute's story, mission, values, and milestones.
 3. **Courses** — the full course catalog.
 4. **Spoken English** — the flagship Spoken English program.
@@ -229,17 +231,19 @@ from the client-only architecture and **must be understood/configured at deploy 
 
 ## Security
 
-- **Dependency advisories (`react-router-dom`).** The project pins `react-router-dom`
-  at the latest published v7 (`^7.18.1`), the most secure version available for a
-  **declarative client SPA**: it resolves the client-relevant advisories
-  (open-redirect / XSS classes) that affect older 7.x releases. One residual advisory,
+- **Dependency advisories (`react-router-dom`).** The project declares `react-router-dom`
+  at `^7.18.1` — the v7 line is the correct one for a **declarative client SPA** and it
+  resolves the client-relevant advisories (open-redirect / XSS classes) that affect older
+  7.x releases. The one advisory that formerly remained open against the locked version,
   **GHSA-qwww-vcr4-c8h2** — a CSRF issue in React Router's **React Server Components /
-  server-action** mode — has no published version that fixes it without regressing to a
-  release that reintroduces the worse client-side advisories. It is **not reachable in
-  this application**, which uses only declarative `<BrowserRouter>` routing with no RSC,
-  no server actions, and no data-router loaders/actions. It is therefore documented as
-  an accepted, non-exploitable ecosystem constraint rather than a code defect;
-  re-evaluate when a fixed React Router release is published.
+  server-action** mode — **is now patched, and the patch is adopted**: `react-router` and
+  `react-router-dom` are locked at **7.18.2**, the first release the advisory records as
+  fixed. No declared range changed, because `^7.18.1` already permitted it; only
+  `package-lock.json` moved. That advisory was never reachable in this application, which
+  uses only declarative `<BrowserRouter>` routing with no RSC, no server actions and no
+  data-router loaders/actions — so adopting the fix removed a non-exploitable ecosystem
+  constraint rather than an exploitable defect. `npm audit` reports **0 vulnerabilities**
+  for both the full and the `--omit=dev` dependency graph.
 - **Structured-data serialization.** JSON-LD injected into `<script>` tags via Helmet
   is validated (plain objects only) and escaped (`<` → `\u003c`, `>` → `\u003e`,
   `&` → `\u0026`, and U+2028/U+2029) to prevent script-context breakout (CWE-79).
@@ -337,10 +341,13 @@ this build** and are documented so integrators are not surprised:
   placeholders** intended to be replaced with genuine, institute-supplied assets
   (real photographs, verified faculty biographies, and actual student records)
   before launch. This is disclosed **visibly in the running app** — a site-wide
-  "Demo content notice" band in the footer, plus point-of-claim notices on the
-  Home, Faculty, Success Stories, About, Career, Events, Blog, and Courses pages —
-  and is gated by the `representativeContent` flag in `src/data/siteConfig.js` (set
-  it to `false` once the content is client-verified to retire every notice at once).
+  "Demo content notice" band in the footer, which names all three classes of
+  placeholder content (course details, representative records, and the descriptive
+  marketing copy about teaching, results and certificates), plus point-of-claim
+  notices on the Home, Faculty, Success Stories, About, Career, Events, Blog,
+  Courses, Spoken English, Science Coaching, and Computer Courses pages — and is
+  gated by the `representativeContent` flag in `src/data/siteConfig.js` (set it to
+  `false` once the content is client-verified to retire every notice at once).
 - **Unverified social profiles are hidden by default.** Social links and the
   `sameAs` entries in the JSON-LD are gated behind `socialVerified` in
   `src/data/siteConfig.js` (currently `false`), so no unconfirmed identity is

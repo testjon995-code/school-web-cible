@@ -11,39 +11,34 @@ import { cn } from '../../lib/cn.js'
  * typically rendered inside a responsive grid such as the Home page
  * "Why choose us" section.
  *
- * Reuse-first: FeatureCard COMPOSES the shared <Card> surface primitive rather
- * than restyling a raw <div>, so it inherits the one brand surface used by every
- * card in the product (`rounded-2xl border border-border bg-white p-6 shadow-sm
- * hover:shadow-md`). FeatureCard adds only the feature-specific concerns: a
- * vertical layout, an icon badge, and a subtle hover lift.
+ * Reuse-first: FeatureCard COMPOSES the shared <Card> surface primitive rather than
+ * restyling a raw <div>, so it inherits the one brand card surface and adds only the
+ * feature-specific concerns — a vertical layout, an icon badge and a subtle hover
+ * lift.
  *
  * Data-agnostic: all content is supplied by the caller via props, so the same
  * component serves any feature list without duplication (the consuming page owns
  * the data; this component owns the presentation).
  *
- * Styling (Tailwind CSS v4 `@theme` tokens defined in src/index.css — zero
- * hardcoded values, 8px spacing scale):
- * - Root: inherits the Card surface and adds `flex flex-col gap-4` (16px vertical
- *   rhythm for the icon → title → text stack) plus `transition-transform
- *   duration-200 hover:-translate-y-1` — a subtle, GPU-cheap CSS hover lift. It is
- *   deliberately a PURE CSS micro-interaction (no framer-motion), so the card
- *   stays safe to render inside sliders/carousels and automatically honors
- *   `prefers-reduced-motion` via the global reduced-motion reset in index.css.
- * - Icon badge: a 48px (`h-12 w-12`), `rounded-lg` tinted disc — a translucent
- *   `bg-primary-600/10` fill with a `text-primary-600` glyph — rendered ONLY when
- *   an `icon` is provided (no empty badge otherwise). `rounded-lg` is the brand
- *   --radius-lg token (0.75rem); Tailwind's stock `xl` step resolves to the very
- *   same 0.75rem but is a framework value, not one of the two brand radius steps,
- *   so the badge stays on the token to keep the radius vocabulary singular.
- * - Title: an `<h3>` at `text-lg font-semibold text-foreground`.
- * - Description: a `<p>` at `text-sm leading-relaxed text-muted`.
+ * Styling (Tailwind v4 `@theme` tokens from src/index.css — zero hardcoded values,
+ * 8px spacing scale):
+ * - Root: the inherited Card surface plus a vertical stack and a subtle CSS hover
+ *   lift. The lift is a pure CSS micro-interaction rather than framer-motion, so it
+ *   costs no animation runtime and is neutralised automatically by the global
+ *   `prefers-reduced-motion` reset in index.css. It is still a TRANSFORM, so this tile
+ *   belongs in a grid; <ReviewCard> is the card to use inside a carousel, where a
+ *   transform can jitter a slide mid-transition.
+ * - Icon badge: a tinted disc on the brand `--radius-lg` step, rendered ONLY when an
+ *   `icon` is provided so there is never an empty badge. Tailwind's stock next step up
+ *   resolves to the same length but is a framework value rather than one of the two
+ *   brand radius steps, so the badge stays on the token and the radius vocabulary
+ *   stays singular.
+ * - Title: an `<h3>`. Description: a muted `<p>`.
  *
- * Note on tokens: this repo's design system (src/index.css `@theme`) exposes the
- * numbered brand scale (`--color-primary-600`) and a `--color-muted` neutral, so
- * the utilities used here are `text-primary-600` / `bg-primary-600/10` and
- * `text-muted` (matching every sibling primitive) — there is no bare
- * `--color-primary` or `--color-muted-foreground` token, so those variants would
- * emit no CSS and are intentionally NOT used.
+ * Note on tokens: the design system exposes the numbered brand scale and a neutral
+ * `muted`, which is what the utilities here use, matching every sibling primitive.
+ * There is no bare `--color-primary` or `--color-muted-foreground` token, so those
+ * variants would emit no CSS and are intentionally not used.
  *
  * Accessibility (WCAG AA):
  * - The `icon` is purely decorative: it is rendered with `aria-hidden="true"` and
@@ -51,8 +46,8 @@ import { cn } from '../../lib/cn.js'
  *   by the icon or color alone.
  * - Uses an `<h3>`: these tiles sit beneath a section-level `<h2>`, keeping the
  *   document heading hierarchy correct.
- * - Text pairs `text-foreground` (~17:1) and `text-muted` (~7.5:1) both clear AA
- *   contrast on the white card surface.
+ * - Both text tokens clear AA contrast on the white card surface (the ledger lives in
+ *   src/index.css).
  *
  * Composition:
  * - `className` is merged LAST through `cn()` (clsx + tailwind-merge), so any
@@ -69,13 +64,9 @@ import { cn } from '../../lib/cn.js'
  * @param {string} [props.title] Short feature heading (rendered inside an `<h3>`).
  * @param {string} [props.description] Supporting body copy (rendered inside a `<p>`).
  * @param {string} [props.className] Extra classes, merged last (wins on conflict).
- * @param {object} [props] Any other props (`as`, `id`, `aria-*`, `data-*`, event
- *   handlers, …) are forwarded to the underlying <Card> root.
  * @returns {import('react').ReactElement} The rendered feature card.
  */
 function FeatureCard({ icon, title, description, className, ...props }) {
-  // react-icons are passed as component REFERENCES. Assign to a Capitalized local
-  // so JSX renders it as an element; never invoke the icon as a plain function.
   const Icon = icon
 
   return (

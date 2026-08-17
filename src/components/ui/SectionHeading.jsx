@@ -9,41 +9,30 @@ import { cn } from '../../lib/cn.js'
  * the document's HEADING HIERARCHY stay consistent across the whole site. Reuse
  * it everywhere instead of hand-rolling heading markup.
  *
- * Anatomy (all styling flows through the Tailwind `@theme` brand tokens defined
- * in `src/index.css` plus stock Tailwind type utilities; there are no hardcoded
- * or arbitrary values):
- * - eyebrow  : optional small uppercase kicker rendered as a `<p>` in brand blue
- *              (`text-primary-600`, AA on white). It is NOT a heading, so it
- *              never pollutes the accessibility outline. Its
- *              `text-sm font-semibold uppercase tracking-wide` treatment is
- *              deliberately identical to the footer's column kickers, so the
- *              whole site speaks ONE small-caps label voice — change it here and
- *              `layout/Footer.jsx` must change with it.
- * - title    : the section's REAL heading, rendered via the `as` tag so callers
- *              preserve a logical outline (pages pass `as="h1"` to make this the
- *              page's single `<h1>`; sections use the `<h2>` default and
+ * Anatomy — all three parts style through the Tailwind `@theme` brand tokens in
+ * `src/index.css`, with no hardcoded or arbitrary values:
+ * - eyebrow  : an optional uppercase kicker rendered as a `<p>`, NOT a heading, so
+ *              it never pollutes the accessibility outline. Its small-caps label
+ *              treatment is shared with the footer's column kickers so the site
+ *              speaks one label voice — change it here and `layout/Footer.jsx`
+ *              must change with it.
+ * - title    : the section's REAL heading, rendered through the `as` tag so
+ *              callers keep the outline logical (pages pass `as="h1"` for the
+ *              page's single `<h1>`; sections take the `<h2>` default,
  *              sub-sections `<h3>`).
- * - subtitle : optional supporting paragraph rendered as a muted `<p>`
- *              (`text-muted`, AA on white).
+ * - subtitle : an optional supporting paragraph in muted body prose.
  *
- * Type hierarchy. The scale is `text-3xl`/`md:text-4xl` for the title and
- * `text-base`/`md:text-lg` for the subtitle, with the vertical rhythm on the
- * project's 8px scale (`mb-2` = 8px under the eyebrow, `mt-4` = 16px above the
- * subtitle). Line height is pinned EXPLICITLY on both, because Tailwind's
- * per-size defaults would otherwise drift across the breakpoint — a title would
- * run at 1.2 leading while small and TIGHTEN to 1.111 once `md:text-4xl` takes
- * over, and the subtitle would loosen from 1.5 to 1.556. `leading-tight` (1.25)
- * holds the title at one value on both steps and matches the hero's `<h1>`, so
- * every display heading on the site shares a single leading; being marginally
- * looser than both defaults, it also leaves descenders room to breathe on the
- * two- and three-line wraps that long titles take at 320px. `leading-relaxed`
- * (1.625) does the same for the subtitle and is the site-wide body-prose value.
+ * Line height is pinned EXPLICITLY on the title and the subtitle, because
+ * Tailwind's per-size defaults drift across the breakpoint: the title's leading
+ * would tighten as the type scales up and the subtitle's would loosen. One pinned
+ * value per element holds each steady on both steps, matches the hero's `<h1>` for
+ * display headings, and leaves descenders room on the multi-line wraps long titles
+ * take at the narrowest widths.
  *
- * Wrapping is refined with `text-balance` on the title and `text-pretty` on the
- * subtitle: the heading's lines are evened out instead of leaving a lone trailing
- * word, and the paragraph avoids orphans. Both are progressive enhancements —
- * browsers without `text-wrap` support simply wrap normally, so no layout depends
- * on them.
+ * Wrapping is refined by the balance/pretty text-wrap utilities: the heading's
+ * lines are evened out instead of leaving a lone trailing word, and the paragraph
+ * avoids orphans. Both are progressive enhancements — browsers without
+ * `text-wrap` support simply wrap normally, so no layout depends on them.
  *
  * The eyebrow and subtitle render only when their props are truthy, so no empty
  * nodes leak into the DOM. Any extra props (`id`, `aria-*`, `data-*`, …) are
@@ -56,10 +45,9 @@ import { cn } from '../../lib/cn.js'
  * @param {import('react').ReactNode} [props.subtitle] - Optional supporting paragraph.
  * @param {'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'} [props.as='h2'] - Heading element
  *   to render, to keep the outline logical. Any heading level is accepted and
- *   rendered verbatim — 17 page modules pass `as="h1"` so this block supplies the
- *   page's single `<h1>`, and `common/FAQ.jsx` derives the tag from its numeric
- *   `headingLevel` prop, so the render stays deliberately permissive: no
- *   validation, clamping or coercion here, or those callers would break.
+ *   rendered verbatim: page modules pass `as="h1"`, and `common/FAQ.jsx` derives
+ *   the tag from its numeric `headingLevel` prop, so the render stays deliberately
+ *   permissive — no validation, clamping or coercion, which those callers rely on.
  * @param {'center' | 'left'} [props.align='center'] - Text alignment of the block.
  * @param {string} [props.className] - Extra classes merged after the defaults.
  * @returns {import('react').ReactElement} The rendered heading block.

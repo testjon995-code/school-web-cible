@@ -34,11 +34,10 @@
  *
  * WCAG AA non-text contrast (1.4.11, >= 3:1 — controls and meaningful graphics).
  * Carousels render on BOTH the white and the `surface` (#f8fafc) band, so each
- * pairing below is measured against both:
- *   • Pagination, inactive bullet: `muted` #475569 at 0.7 opacity composites to
- *     ≈ rgb(126 136 150) on white and ≈ rgb(124 134 149) on `surface`
- *     → ≈ 3.59:1 and ≈ 3.50:1 → pass. Swiper's own default (#000 at 0.2
- *     opacity) sits near 1.6:1 and FAILS; see the override zone below.
+ * pairing below has to clear the floor on both:
+ *   • Pagination, inactive bullet: `muted` #475569 at 0.7 opacity clears 3:1 on
+ *     white and on `surface`. Swiper's own default (#000 at 0.2 opacity) does
+ *     not; the override zone below re-points it at the brand token.
  *   • Pagination active bullet and navigation arrows: `primary-600` — clears the
  *     3:1 floor on both bands with room to spare (see Links, above).
  * ----------------------------------------------------------------------------
@@ -86,13 +85,13 @@
   --color-accent-800: #166534;
   --color-accent-900: #14532d;
 
-  /* ===== Color · Semantic / neutral (verified AA on white) ================ */
-  --color-background: #ffffff;      /* page background — white */
-  --color-surface: #f8fafc;         /* ≈ slate-50  — subtle neutral section */
-  --color-surface-muted: #f1f5f9;   /* ≈ slate-100 — secondary surface */
-  --color-foreground: #0f172a;      /* ≈ slate-900 — primary text (~17:1) */
-  --color-muted: #475569;           /* ≈ slate-600 — secondary text (~7.5:1) */
-  --color-border: #e2e8f0;          /* ≈ slate-200 — hairlines / dividers */
+  /* ===== Color · Semantic / neutral (AA on white — see ledger above) ====== */
+  --color-background: #ffffff;
+  --color-surface: #f8fafc;
+  --color-surface-muted: #f1f5f9;
+  --color-foreground: #0f172a;
+  --color-muted: #475569;
+  --color-border: #e2e8f0;
 
   /* ===== Typography ======================================================= */
   /* Inter is loaded via <link> in index.html (weights 400;500;600;700;800).
@@ -109,22 +108,13 @@
   --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.06);
   --shadow-md: 0 8px 24px -6px rgb(15 23 42 / 0.12);
   /* Fixed / floating surfaces only. The two steps above cover in-flow surfaces
-     (`shadow-sm` = card at rest, `shadow-md` = card on hover). Elements that
-     float OVER the page need one more step of separation, and they used to reach
-     for Tailwind's built-in `shadow-lg` — the last non-brand elevation in the
-     codebase. Naming that step here keeps the whole elevation vocabulary on
-     brand: same slate tint, same single-layer idiom, continuing the
-     1/2/0.06 → 8/24/0.12 progression. Reached through the auto-generated
-     `shadow-float` utility.
-
-     Consumers, stated as they stand today: all three persistent conversion
-     widgets — `components/cta/FloatingWhatsApp.jsx`,
-     `components/cta/FloatingCall.jsx` and `components/cta/StickyBottomCTA.jsx` —
-     consume `shadow-float`, so `shadow-lg` no longer appears anywhere in `src/`
-     and this token is the single elevation for the floating tier. Keep it that
-     way: a new fixed/floating surface belongs on `shadow-float`, not on
-     Tailwind's stock large step. Deliberately a new step rather than reusing
-     `--shadow-md`, which would drop those widgets to the card-hover elevation. */
+     (`shadow-sm` = card at rest, `shadow-md` = card on hover); an element that
+     floats OVER the page needs one more step of separation. `--shadow-float` is
+     the whole floating tier, so a new fixed/floating surface belongs on it rather
+     than on one of Tailwind's stock elevations — same slate tint and same
+     single-layer idiom, continuing the 1/2/0.06 → 8/24/0.12 progression. It is a
+     third step rather than a reuse of `--shadow-md`, which would flatten those
+     surfaces to the card-hover elevation. */
   --shadow-float: 0 12px 32px -8px rgb(15 23 42 / 0.18);
 }
 
@@ -151,158 +141,154 @@
   max-height: 85vh;
 }
 
-/* Route-progress bar stacking (M18). One step above the sticky header / mobile
-   drawer (z-50) and the floating conversion widgets (z-40) so the pending-
-   navigation bar paints over the very top edge of the header. Below the
-   skip-link (z-index 1000), which must always win when focused. */
+/* Route-progress bar stacking. One step above the sticky header / mobile drawer
+   (z-50) and the floating conversion widgets (z-40) so the pending-navigation
+   bar paints over the very top edge of the header. Below the skip-link
+   (z-index 1000), which must always win when focused. */
 @utility z-route-progress {
   z-index: 60;
 }
 
 /**
- * Third-party overrides — Swiper pagination touch targets (M12).
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THIRD-PARTY OVERRIDE ZONE — Swiper. This file owns every Swiper-targeting
+ * declaration in the application; the carousel components own none.
  *
- * Swiper's default pagination bullets are only 8×8px, well below a comfortable
- * touch target. Keep the painted dot compact but expand each bullet's tap area
- * with transparent padding, clipping the visible fill to the content box so the
- * dot still reads as a small circle (a 10px content box at `border-radius:50%`
- * stays perfectly round) while the clickable/tappable box grows to ~26px — at or
- * above the WCAG 2.5.8 AA 24px minimum. The descendant selector outranks
- * Swiper's own single-class rule, so this wins regardless of stylesheet order,
- * and it is intentionally OUTSIDE Tailwind's `@layer base` because Swiper's
- * imported CSS is un-layered and would otherwise take precedence over a layered
- * rule. This rule owns the BASE GEOMETRY ONLY — size, padding, box sizing and
- * fill clipping, for every bullet in either state. It declares no colour and no
- * opacity, so the painted dot still resolves from Swiper's own custom properties;
- * the colour block further below re-points those properties at brand values and
- * raises the inactive bullet past the 3:1 non-text-contrast floor. The rules
- * therefore COMPOSE rather than compete — base geometry here, the active-bullet
- * size step next, colour and opacity after that — and the ~26px tap target
- * survives all of it untouched. Applies to every carousel (Gallery,
- * TestimonialSlider).
+ * WHY THE RULES BELOW SIT OUTSIDE EVERY CASCADE LAYER: Swiper's stylesheets are
+ * imported as plain CSS and are therefore un-layered, while Tailwind v4 emits
+ * every utility inside `@layer utilities`. An un-layered declaration beats a
+ * layered one regardless of selector specificity, so no utility class on a
+ * carousel component can reach a Swiper base rule (`.swiper { padding: 0 }`,
+ * `.swiper-slide { height: 100% }`, `.swiper-pagination { position: absolute }`).
+ * This zone is the only position in the cascade that can, and `!important` or
+ * inline styles are barred by the project's styling rules.
  *
- * TWO SELECTORS, ONE RULE: `.swiper …` covers a pagination Swiper renders inside
- * the slider root (Gallery's default), and `.swiper-pagination …` covers one a
+ * WHY EACH RULE ALSO OUT-SPECIFIES SWIPER: being un-layered settles layer order,
+ * not ties. Swiper's own rules are single-class, so a plain single-class override
+ * would tie and fall through to source order — which Swiper wins, because its
+ * CSS is bundled into a lazily loaded chunk whose `<link>` is appended to
+ * `<head>` at runtime, after the statically linked stylesheet this file compiles
+ * into. Each rule below therefore adds one notch of specificity, by a descendant
+ * selector where the element is nested and by a doubled class where it is not.
+ *
+ * The rules are scoped to Swiper's own classes rather than to either carousel, so
+ * TestimonialSlider and Gallery share ONE treatment.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * Pagination bullet — base geometry (both carousels, both bullet states).
+ *
+ * Swiper's default bullet is 8×8px, below a comfortable touch target. The painted
+ * dot stays compact at 10px while transparent padding grows the tappable box to
+ * ~26px, clearing the WCAG 2.5.8 AA 24px minimum; `background-clip: content-box`
+ * keeps the fill on the dot, which stays perfectly round because a 10px content
+ * box at `border-radius: 50%` is a circle.
+ *
+ * This rule declares GEOMETRY ONLY — size, padding, box sizing, fill clipping and
+ * alignment. No colour and no opacity, so the painted dot still resolves from
+ * Swiper's custom properties, which the colour block below re-points at brand
+ * values. The three bullet rules therefore compose rather than compete: base
+ * geometry here, the active-bullet size step next, colour and opacity after that,
+ * and the ~26px tap target survives all of them.
+ *
+ * TWO SELECTORS, ONE RULE: `.swiper …` matches a pagination Swiper renders inside
+ * the slider root (Gallery's default); `.swiper-pagination …` matches one a
  * carousel hosts OUTSIDE that root by supplying `pagination.el`
- * (TestimonialSlider's control cluster) — where the descendant-of-`.swiper` form
- * simply would not match, silently returning the bullets to 8px. Both score one
- * notch above Swiper's own single-class `.swiper-pagination-bullet` AND above its
- * `button&` reset (`button.swiper-pagination-bullet`), so the geometry holds for
- * the real `<button>` bullets in either position. Declared once with a selector
- * list rather than copied, so the two positions can never drift apart.
+ * (TestimonialSlider's control cluster), where the descendant-of-`.swiper` form
+ * would not match at all and the bullets would silently fall back to 8px. Both
+ * forms also outrank Swiper's `button.swiper-pagination-bullet` reset, so the
+ * geometry holds for the real `<button>` bullets in either position. One selector
+ * list rather than two copies, so the positions cannot drift apart.
  */
 .swiper .swiper-pagination-bullet,
 .swiper-pagination .swiper-pagination-bullet {
-  width: 0.625rem; /* 10px painted dot */
+  width: 0.625rem;
   height: 0.625rem;
-  padding: 0.5rem; /* 8px transparent ring → 26px tap target */
+  padding: 0.5rem;
   box-sizing: content-box;
   background-clip: content-box;
   /* Align every bullet by its CENTRE rather than by its baseline. Swiper renders
-     each bullet as an EMPTY inline-block <button>, and Chrome derives such a
-     button's baseline from its content box — i.e. from (padding-top + content
-     height), which the active-bullet rule below deliberately changes (6 + 14 = 20
-     against 8 + 10 = 18). Under the default `vertical-align: baseline` that 2px
-     difference lifted the current bullet 2px above its neighbours, so the two
-     bullets involved jumped vertically every time the current slide changed
-     (measured: y 474.984 → 472.984). Centre alignment makes the two boxes share one
-     vertical position, so the size cue moves along the row without a single pixel of
-     movement in EITHER axis. It also keeps the two dot sizes concentric, which is
+     each bullet as an EMPTY inline-block <button>, and a browser derives such a
+     button's baseline from its content box — from (padding-top + content height),
+     which the active-bullet rule below deliberately changes (6 + 14 against
+     8 + 10). Under the default `vertical-align: baseline` that 2px difference
+     lifts the current bullet above its neighbours, so both bullets involved shift
+     vertically on every slide change. Centre alignment gives the two boxes one
+     shared vertical position, so the size cue travels along the row with no
+     movement in either axis, and keeps the two dot sizes concentric — which is
      what makes the step read as growth rather than as a nudge. */
   vertical-align: middle;
 }
 
 /**
- * Third-party overrides — Swiper pagination CURRENT-slide cue (non-colour state).
+ * Pagination bullet — CURRENT-slide cue (non-colour state signal).
  *
- * OVERRIDES: the painted-dot size for the active bullet only. Swiper itself gives
+ * OVERRIDES the painted-dot size for the active bullet only. Swiper gives
  * `.swiper-pagination-bullet-active` nothing but `opacity: 1` and a different
- * `background`, and the geometry rule directly above deliberately paints every
- * bullet at one size — so before this rule the current slide was signalled by
- * COLOUR ALONE. Measured in-browser at 1440x900 and 390x844: active and inactive
- * bullets had identical 26x26 boxes, identical 10px painted dots, identical
- * `border-radius: 50%`, and `outline`, `box-shadow`, `transform` and `scale` all
- * `none` on both. The only difference was the fill — `rgb(37, 99, 235)` at opacity
- * 1 against `rgb(71, 85, 105)` at 0.7 (rendering `rgb(125, 135, 149)`) — which is
- * only 1.42:1 ACTIVE-VS-INACTIVE and collapses to a ~10% lightness step in
- * greyscale (measured luma 96 vs 134).
+ * `background`, and the geometry rule above paints every bullet at one size, so
+ * without this rule the current slide would be signalled by COLOUR ALONE — and
+ * active-against-inactive fill is a weak ratio that collapses further in
+ * greyscale. Each bullet already carries `aria-current` and a "Go to slide N"
+ * name, so the programmatic channel is covered; this supplies the visual one.
  *
- * CLOSES: "never use colour alone to communicate state" for both carousels. The
- * cue is pure GEOMETRY: the painted dot grows from 10px to 14px (+40% diameter,
- * ~+96% area), which reads as a size step in monochrome, under any colour-vision
- * deficiency, and in strong sunlight. Each bullet already carries `aria-current`
- * and a "Go to slide N" name, so the programmatic channel was never the gap — the
- * visual one was.
+ * The cue is pure GEOMETRY: the painted dot grows from 10px to 14px (+40%
+ * diameter), which reads as a size step in monochrome, under any colour-vision
+ * deficiency, and in bright light.
  *
  * WHY IT CANNOT SHIFT LAYOUT: the padding shrinks by exactly as much as the dot
- * grows, so the BORDER BOX is unchanged — 14px + (2 x 6px) = 26px, identical to the
- * inactive 10px + (2 x 8px) = 26px. The arithmetic, not a measurement, is the
- * guarantee: no bullet can change width when the active slide moves, so the
- * centred row cannot re-flow under the pointer. The ~26px tap target (above the
- * WCAG 2.5.8 24px floor) is preserved for every bullet in both states, and the
- * content-box corner radius stays 13px − 6px = 7px on a 14px box, i.e. still 50%,
- * so the dot stays perfectly round.
+ * grows, so the BORDER BOX is unchanged — 14 + (2 × 6) = 26px, identical to the
+ * inactive 10 + (2 × 8) = 26px. The arithmetic is the guarantee: no bullet changes
+ * width when the active slide moves, so the centred row cannot re-flow under the
+ * pointer. The ~26px tap target holds in both states, and the content-box corner
+ * radius stays 50% of a 14px box, so the dot stays round.
  *
- * WHY NOT AN OUTLINE OR A RING: an `outline` here would be actively harmful. This
- * zone is UN-LAYERED, so it outranks the single global `:focus-visible` outline in
- * `@layer base` regardless of specificity — and these bullets are real, focusable
- * `<button>`s. A permanent active outline would therefore swallow the focus ring on
- * the current bullet and cost WCAG 2.4.7. A `box-shadow` ring is not clipped by
- * `background-clip: content-box` either, so it would paint around the full 26px tap
- * box rather than the 10px dot and read as a stray focus ring. Growing the dot
- * avoids both problems and touches no colour, so the 3:1 non-text-contrast work in
- * the colour block below stays exactly as measured.
+ * WHY NOT AN OUTLINE OR A RING: this zone is un-layered, so an `outline` here
+ * would outrank the single global `:focus-visible` outline in `@layer base`
+ * regardless of specificity — and these bullets are real, focusable `<button>`s,
+ * so a permanent active outline would swallow the focus ring on the current bullet
+ * and cost WCAG 2.4.7. A `box-shadow` ring is not clipped by
+ * `background-clip: content-box`, so it would paint around the full 26px tap box
+ * and read as a stray focus ring. Growing the dot avoids both and touches no
+ * colour, leaving the non-text-contrast work below intact.
  *
- * WHY THESE SELECTORS AND THIS POSITION: `.swiper .swiper-pagination-bullet-active`
- * scores (0,2,0), which beats Swiper's own `.swiper-pagination-bullet-active`
- * (0,1,0) and its `button.swiper-pagination-bullet { padding: 0 }` (0,1,1)
- * outright. It TIES with the geometry rule above, which is also (0,2,0), so it must
- * stay BELOW it in source order — that tie is resolved by position, and this rule
- * has to win it. The cue is declared for BOTH pagination positions, exactly as the
- * geometry rule above is: `.swiper …` covers the in-slider band Gallery keeps, and
- * `.swiper-pagination …` covers the band TestimonialSlider hands to Swiper through
- * `pagination.el` inside its control cluster — an element that is NOT a descendant
- * of `.swiper`, so the first selector alone would leave that carousel signalling
- * the current slide by colour alone again.
+ * WHY THESE SELECTORS AND THIS POSITION: the descendant form beats Swiper's own
+ * single-class active rule and its `button.swiper-pagination-bullet` reset
+ * outright, but it TIES with the geometry rule above, which is equally specific —
+ * so this rule must stay BELOW it in source order to win the tie. The cue is
+ * declared for both pagination positions for the same reason the geometry rule is:
+ * without the `.swiper-pagination …` form, a carousel that hosts its band outside
+ * the slider root would signal the current slide by colour alone.
  */
 .swiper .swiper-pagination-bullet-active,
 .swiper-pagination .swiper-pagination-bullet-active {
-  width: 0.875rem; /* 14px painted dot — the size step that carries the state */
+  width: 0.875rem;
   height: 0.875rem;
-  padding: 0.375rem; /* 6px ring: 14 + 12 = 26px, the same box as an inactive bullet */
+  padding: 0.375rem;
 }
 
 /**
- * Third-party overrides — Swiper control color and contrast.
+ * Swiper control colour and contrast.
  *
- * OVERRIDES: `--swiper-theme-color` (Swiper declares `#007aff` on `:root`), plus
- * the pagination color and inactive-bullet variables it leaves unset.
- *
- * WHY UN-LAYERED: same reason as the rule above — Swiper's imported CSS sits
- * outside every cascade layer, and un-layered declarations beat layered ones
- * regardless of specificity, so no Tailwind utility could reach these.
+ * OVERRIDES `--swiper-theme-color` (Swiper declares the iOS blue `#007aff` on
+ * `:root`) plus the pagination colour and inactive-bullet variables it leaves
+ * unset, so the arrows and the active bullet paint in the CIBLE primary.
  *
  * WHY ON THESE SELECTORS, NOT `:root`: a declaration on `.swiper` supplies the
  * value for that element and everything inside it through custom-property
- * inheritance, so it wins outright instead of tying on specificity with Swiper's
- * `:root` rule. The three control classes are listed as well so the brand color
- * still applies when a carousel renders its controls OUTSIDE the slider root —
- * Swiper skips its own internal control elements whenever an explicit
+ * inheritance, so it wins outright instead of tying with Swiper's own `:root`
+ * rule. The three control classes are listed as well so the brand colour still
+ * applies when a carousel renders its controls OUTSIDE the slider root — Swiper
+ * skips its internal control elements whenever an explicit
  * `navigation.nextEl`/`prevEl` or `pagination.el` is supplied.
  *
- * CLOSES: off-brand controls — the arrows and the active bullet computed
- * `rgb(0, 122, 255)` (iOS blue) instead of the CIBLE primary `#2563eb`.
- *
- * CLOSES: WCAG 1.4.11 Non-text Contrast on the pagination. Swiper paints the
- * inactive bullet `#000` at `0.2` opacity, which lands near 1.6:1 against white
- * and fails the 3:1 floor for a control that communicates position. The brand
- * `muted` token at `0.7` opacity measures ≈ 3.59:1 on white and ≈ 3.50:1 on the
- * `surface` band (carousels appear on both) while staying visibly subordinate to
- * the saturated `primary-600` active bullet. Note what this block does NOT claim:
- * active-vs-INACTIVE measures only ≈ 1.42:1, so colour is a reinforcement here and
- * never the state signal — that job belongs to the 10px → 14px size step declared
- * above. Only color and opacity are set here; the bullet geometry above — the two
- * dot sizes and the ~26px tap target they share — is untouched.
+ * WCAG 1.4.11 Non-text Contrast: Swiper paints the inactive bullet `#000` at
+ * `0.2` opacity, well under the 3:1 floor for a control that communicates
+ * position. The brand `muted` token at `0.7` opacity clears 3:1 on both the white
+ * and the `surface` band (carousels appear on both) while staying visibly
+ * subordinate to the saturated `primary-600` active bullet. What this block does
+ * NOT do is carry state: active-against-inactive fill is a weak ratio, so colour
+ * only reinforces the current-slide cue and never signals it — that job belongs to
+ * the 10px → 14px size step above. Only colour and opacity are set here; the
+ * bullet geometry and its ~26px tap target are untouched.
  */
 .swiper,
 .swiper-button-prev,
@@ -316,40 +302,28 @@
 }
 
 /**
- * Third-party overrides — Swiper slide breathing room.
+ * Swiper slide breathing room — inline gutter and reserved pagination band.
  *
- * OVERRIDES: `.swiper { padding: 0 }`, which Swiper declares un-layered. That one
- * declaration is why a `pb-12` utility class on a slider root computed to `0px`:
- * the class is real and present in the markup, but a layered utility cannot beat
- * an un-layered rule. This is the only position in the cascade that can.
+ * OVERRIDES `.swiper { padding: 0 }`. A bottom-padding utility on a slider root
+ * cannot do this job: it is layered, so it computes to zero however specific it
+ * is. This zone is the only position that can, and the class is doubled because
+ * Swiper's rule is single-class (see the zone header on ties and load order).
  *
- * CLOSES: clipped card shadows. `Card`'s hover elevation (`--shadow-md`: a 24px
- * blur pulled back by a -6px spread) reaches 6px beyond the card edge, and the
- * first and last visible cards sit flush with the slider's edges, so that bleed
- * was being cut off. 8px of inline padding contains it. `overflow: hidden` on the
- * root is deliberately LEFT IN PLACE — unclipping would let off-screen slides
- * escape and reintroduce horizontal page overflow. This stays safe because
- * Swiper's `updateSize()` subtracts container padding before it measures slides,
- * and Tailwind's preflight makes the box `border-box`, so neither the slider's
- * outer width nor its slide arithmetic changes. The gutter is also narrower than
- * the smallest inter-slide gap in the app (Gallery's 16px), so no neighbouring
- * slide can peek into it.
+ * The inline gutter contains the card shadow. `Card`'s hover elevation
+ * (`--shadow-md`) blurs past the card edge, and the first and last visible cards
+ * sit flush with the slider's edges, so without it that bleed is clipped. 8px is
+ * enough for the widest bleed and stays narrower than the smallest inter-slide gap
+ * in the app (16px), so no neighbouring slide can peek into it.
  *
- * CLOSES: the pagination band having nowhere to sit. `padding-block-end` reserves
- * room below the slides for the bullets and for the deepest part of that same
- * card shadow, whose 14px tail is its largest extent.
+ * `overflow: hidden` on the root is deliberately LEFT IN PLACE — unclipping would
+ * let off-screen slides escape and reintroduce horizontal page overflow. Padding
+ * is safe for Swiper's arithmetic because `updateSize()` subtracts container
+ * padding before it measures slides, and Tailwind's preflight makes the box
+ * `border-box`, so neither the slider's outer width nor its slide sizing changes.
  *
- * WHY THE CLASS IS REPEATED: being un-layered is necessary but not sufficient
- * here. Swiper's `.swiper { padding: 0 }` is a single class, so a plain `.swiper`
- * override would tie on specificity and fall back to source order — and Swiper's
- * stylesheet loses that tiebreak in our favour only by accident. It is imported
- * by the carousel components, so it is bundled into a lazily loaded chunk whose
- * `<link>` is appended to `<head>` at runtime, AFTER the statically linked entry
- * stylesheet this file compiles into. A tie would therefore be won by Swiper and
- * this rule would silently do nothing — the same failure mode as the `pb-12`
- * class it replaces. Repeating the class costs one notch of specificity and makes
- * the override independent of bundling and load order, which is the same
- * guarantee the descendant selector gives the bullet rule above.
+ * `padding-block-end` reserves room below the slides for the pagination band and
+ * for the deepest part of that same card shadow, so the bullets have somewhere to
+ * sit that is not on top of card content.
  */
 .swiper.swiper {
   padding-inline: 0.5rem;
@@ -357,32 +331,27 @@
 }
 
 /**
- * Third-party overrides — Swiper pagination placement.
+ * Swiper pagination placement — band rendered INSIDE the slider root.
  *
- * OVERRIDES: `.swiper-pagination { position: absolute }` and the `bottom: 8px`
- * offset Swiper gives a horizontal pagination — both un-layered.
+ * OVERRIDES `.swiper-pagination { position: absolute }` and the `bottom` offset
+ * Swiper gives a horizontal pagination. Left alone, the band floats over the last
+ * rows of every visible card at `z-index: 10`. Returning it to normal flow puts
+ * the bullets BELOW the cards, which makes an overlap structurally impossible
+ * rather than arithmetically avoided. The band is already the slider's last child
+ * and the navigation arrows are absolutely positioned, so nothing else in the flow
+ * moves; Swiper's `bottom`/`top` offsets are inert on a static element, while its
+ * `width: 100%` and `text-align: center` still centre the bullets.
  *
- * CLOSES: pagination bullets painted on top of card content. Swiper floats the
- * band 8px from the slider's bottom edge at `z-index: 10`, directly over the last
- * rows of every visible card. Returning the element to normal flow puts the
- * bullets BELOW the cards, which makes an overlap structurally impossible rather
- * than merely arithmetically avoided. It is already the slider's last child and
- * the navigation arrows are absolutely positioned, so nothing else in the flow
- * moves. Swiper's `bottom`/`top` offsets are inert on a static element, while its
- * `width: 100%` and `text-align: center` still center the bullets.
- *
- * The `margin-block-start` leaves a 16px gap, which together with the bullet's own
- * 8px transparent ring reads as a 24px space between the cards and the painted
- * dots — matching the `gap-6` card rhythm, and mirrored below by the 8px ring plus
- * the 16px `padding-block-end` above, so the row sits optically centered in its
- * band. The card shadow's 14px tail renders inside that gap instead of being cut.
+ * The `margin-block-start` plus the bullet's own 8px transparent ring reads as a
+ * 24px space between the cards and the painted dots, matching the card gap rhythm
+ * and mirroring the reserved band above, so the row sits optically centred. The
+ * card shadow's tail renders inside that gap instead of being cut.
  *
  * Scoped to a DIRECT child so it applies only where Swiper renders the pagination
- * inside the slider, which is its default (Gallery). A carousel that supplies its
- * own `pagination.el` elsewhere lays that element out itself and reserves no space
- * here — see the rule immediately below. Swiper's `.swiper-pagination-lock`
- * (`display: none` for a locked, single-slide pagination) still removes the band
- * entirely, margin included.
+ * itself, which is its default. A carousel that supplies its own `pagination.el`
+ * lays that element out and reserves no space here — see the rule below. Swiper's
+ * `.swiper-pagination-lock` still removes a locked single-slide band entirely,
+ * margin included.
  */
 .swiper > .swiper-pagination {
   position: static;
@@ -390,92 +359,68 @@
 }
 
 /**
- * Third-party overrides — Swiper pagination hosted OUTSIDE the slider root.
+ * Swiper pagination placement — band hosted OUTSIDE the slider root.
  *
- * OVERRIDES: `.swiper-pagination { position: absolute }` — un-layered, and the one
- * declaration that decides where the band lands.
+ * OVERRIDES `.swiper-pagination { position: absolute }`, the one declaration that
+ * decides where such a band lands. When a carousel supplies `pagination.el`
+ * (TestimonialSlider hands Swiper an element inside its single control cluster so
+ * the dots, the arrows and the pause toggle share one DOM parent), Swiper stops
+ * rendering its own band inside `.swiper` and populates that element instead — but
+ * its base rule still applies, so the element resolves `position: absolute`
+ * against the nearest positioned ancestor, which for that component is the outer
+ * wrapper holding the slides. The band would paint over the cards at `z-index: 10`,
+ * the same overlap the in-slider rule above prevents. Normal flow lets the
+ * cluster's own layout place it, so the overlap is structurally impossible.
  *
- * CLOSES: the pagination band being torn out of the control cluster. When a
- * carousel supplies `pagination.el` (TestimonialSlider hands Swiper an element
- * inside its single control cluster so the dots, the arrows and the pause toggle
- * share one DOM parent), Swiper stops rendering its own band inside `.swiper` and
- * populates that element instead — but its base rule still applies, so the element
- * would compute `position: absolute` and resolve against the nearest positioned
- * ancestor, which for this component is the `relative` outer wrapper that also
- * contains the slides. The band would therefore paint back over the cards, at
- * `bottom: 8px` and `z-index: 10`, exactly the defect the placement rule above
- * closes for the in-slider case. Returning it to normal flow lets the cluster's
- * own flex layout place it, so the overlap is structurally impossible again.
- *
- * The doubled class is deliberate and load-order-proof for the same reason as
- * `.swiper.swiper` above: Swiper's `.swiper-pagination` is a single class, so a
- * plain `.swiper-pagination` override would tie on specificity and fall through to
- * source order — which Swiper wins, because its stylesheet is bundled into a
- * lazily loaded chunk whose `<link>` is appended AFTER the statically linked entry
- * stylesheet this file compiles into.
+ * The class is doubled for the tie-and-load-order reason in the zone header.
  *
  * Only `position` is reset. Swiper's `bottom`/`top`/`left` offsets are inert on a
  * static element; its `width: 100%` and `text-align: center` still centre the
  * bullets in whatever box the cluster gives them; and its `z-index: 10` keeps the
  * band on the sanctioned Swiper tier of the stacking ledger (skip link 1000 >
  * route progress 60 > header/modals 50 > conversion widgets 40 > Swiper 10). No
- * margin is added here — the cluster owns the spacing between its own rows, so
- * adding one would double the gap. Harmless for the in-slider case, which the
- * `.swiper > .swiper-pagination` rule above already sets to `static`.
+ * margin is added here — the cluster owns the spacing between its own rows, so a
+ * margin would double the gap. Harmless for the in-slider case, which the rule
+ * above already sets to `static`.
  */
 .swiper-pagination.swiper-pagination {
   position: static;
 }
 
 /**
- * Third-party overrides — Swiper equal-height slides.
+ * Swiper equal-height slides — the single owner of slide cross-size.
  *
- * OVERRIDES: `.swiper-slide { height: 100% }`, which Swiper declares un-layered.
+ * OVERRIDES `.swiper-slide { height: 100% }` so every card in a row matches the
+ * tallest one, whatever the length of its text.
  *
- * CLOSES: cards of different heights in the same row. Measured in-browser at
- * 1440x900 before this rule: the six testimonial slides read
- * 307.75 / 330.5 / 307.75 / 330.5 / 307.75 / 330.5 px — a 22.75px spread, which is
- * exactly one line of `text-sm leading-relaxed` quote text (the quotes wrap to
- * 5/6/5/6/5/6 lines). Each `<figure>` measured identical to its own slide, proving
- * every slide was shrink-wrapping its own card and nothing was being stretched.
+ * WHY `height: auto` IS THE WHOLE MECHANISM: flexbox stretches an item only when
+ * its COMPUTED cross-size property is `auto` (CSS Flexible Box Layout §9.4, step
+ * 15). A percentage computes to itself, so Swiper's `height: 100%` suppresses
+ * stretch outright — and because the percentage then resolves against an
+ * indefinite containing block it behaves as content height, which is why each
+ * slide shrink-wraps its own card. `auto` re-enables stretch, and
+ * `.swiper-wrapper` is a `nowrap` flex container, so ALL slides share ONE flex line
+ * and match the tallest at every `slidesPerView` — including 1-up mobile, where it
+ * also keeps the slider's height steady across slide changes. A card's own
+ * full-height class then resolves against a definite parent height, so short and
+ * long quotes share one author-block baseline. `align-items: stretch` is stated
+ * explicitly rather than left to `normal`'s equivalent flex behaviour, so the
+ * intent is legible and so `.swiper-autoheight .swiper-wrapper`'s `flex-start`
+ * cannot silently take over if a caller ever enables `autoHeight`.
  *
- * WHY `height: auto` IS THE WHOLE FIX: flexbox stretches an item only when its
- * COMPUTED cross-size property is `auto` (CSS Flexible Box Layout §9.4, step 15).
- * A percentage computes to itself, so Swiper's `height: 100%` suppressed stretch
- * outright — and because the percentage then resolved against an indefinite
- * containing block it also behaved as content height, which is why the slides
- * shrank instead of filling the row. Returning the slide to `auto` re-enables
- * stretch, and `.swiper-wrapper` is a `nowrap` flex container, so ALL slides share
- * ONE flex line and every card matches the tallest at every `slidesPerView` —
- * including 1-up mobile, where it additionally stops the slider's height jumping
- * on each slide change (measured 376 / 380 / 353.3 / 376 at 320px before). The
- * card's own `h-full` then finally resolves against a definite parent height, so
- * short and long quotes share one author-block baseline. `align-items: stretch` is
- * stated explicitly rather than left to `normal`'s equivalent flex behaviour, so
- * the intent is legible and so `.swiper-autoheight .swiper-wrapper`'s
- * `flex-start` can never silently take over if a caller ever enables `autoHeight`.
+ * A slide-height utility class on the component cannot do this job: utilities are
+ * layered and `@utility` compiles into the same layer, so both lose to Swiper's
+ * un-layered rule. This declaration therefore lives here and nowhere else, and no
+ * carousel component declares a slide height of its own.
  *
- * WHY UN-LAYERED, AND WHY THIS IS THE ONLY OPTION: a `h-auto` utility class was
- * previously present on every `<SwiperSlide>` in `TestimonialSlider.jsx` and was
- * completely inert — the same failure as the `pb-12` above, for the same reason:
- * Tailwind emits utilities inside `@layer utilities` and un-layered declarations
- * win regardless of specificity. `@utility` would not help either, since it also
- * compiles into that layer. The alternatives — `!important` or an inline `style` —
- * are both barred by this project's styling rules, so the override zone is the one
- * remaining place the declaration can live. That inert class has been deleted from
- * the component rather than reworded, and this rule is now the single owner of
- * slide height.
- *
- * WHY A DESCENDANT SELECTOR RATHER THAN A DOUBLED CLASS: `.swiper .swiper-slide`
- * scores one notch above Swiper's single-class `.swiper-slide`, so it wins on
- * specificity outright and never falls through to the source-order tiebreak that
- * forced `.swiper.swiper` above — the same guarantee the bullet rule relies on.
+ * The descendant selector outranks Swiper's single-class `.swiper-slide` outright,
+ * so this rule never depends on the source-order tiebreak.
  *
  * SAFE FOR SLIDE ARITHMETIC: Swiper measures the MAIN axis (width, for a
- * horizontal slider) when it sizes and positions slides, so changing the cross
- * axis cannot affect snap points, `slidesPerView` or the translate. Applies to
- * every carousel (TestimonialSlider, Gallery); Gallery's slides all share the
- * `aspect-4-3` frame, so they were already equal and stay equal.
+ * horizontal slider) when it sizes and positions slides, so a cross-axis change
+ * cannot affect snap points, `slidesPerView` or the translate. Applies to both
+ * carousels; Gallery's slides share one fixed media ratio, so they are equal
+ * either way.
  */
 .swiper .swiper-wrapper {
   align-items: stretch;
@@ -490,13 +435,10 @@
  * Registered in Tailwind's `base` layer so utility classes always win.
  */
 @layer base {
-  /* Smooth in-page navigation (anchor jumps, scroll-to-top). */
   html {
     scroll-behavior: smooth;
   }
 
-  /* Document defaults: reset margin, full-height canvas, brand surface/text,
-     Inter type, and crisp font rendering. */
   body {
     margin: 0;
     min-height: 100vh;
@@ -561,13 +503,14 @@
      safe-area inset, so the persistent shell (Layout), the StickyBottomCTA bar
      and any future fixed widget stay in lock-step instead of each hard-coding
      magic offsets. Consumed by `.shell-bottom-clearance` and `.cta-safe-bottom`.
-       • --cta-sticky-height  : the mobile StickyBottomCTA bar's base height
-         (44px h-11 buttons + 8px top pad + ~8px bottom pad + 1px top border ≈
-         61px); rounded up to 4rem/64px for a comfortable clearance gap.
-       • --safe-area-inset-bottom : the home-indicator/notch inset. Resolves to
-         0px on hardware without a bottom inset (and until index.html opts in
-         with `viewport-fit=cover` during final document wiring), so every
-         consumer degrades gracefully. */
+       • --cta-sticky-height  : the mobile StickyBottomCTA bar's base height (its
+         44px buttons plus vertical padding and the top border come to roughly
+         61px), rounded up to 4rem/64px for a comfortable clearance gap.
+       • --safe-area-inset-bottom : the home-indicator/notch inset, read through
+         `env()` with a 0px fallback. It is intended to lift fixed bottom content
+         clear of a device inset where the platform exposes one; where the
+         platform exposes none it resolves to 0px and every consumer renders
+         unchanged. */
   :root {
     --cta-sticky-height: 4rem;
     --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);

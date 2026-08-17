@@ -1,39 +1,29 @@
 /**
  * Terms — Terms & Conditions legal page (route `/terms`).
  *
- * A readable, long-form legal-prose page presenting the terms that govern use
- * of the CIBLE School of Language website. It mirrors the structural pattern of
- * the Privacy Policy page: a single page `<h1>` supplied by the shared
- * `SectionHeading` primitive, followed by semantic `<h2>` prose sections inside
- * a reading-measure `max-w-3xl` container, and closing with the reusable
- * admission `CTASection` that ends every page of the site.
+ * Long-form legal prose: one page `<h1>` from the shared `SectionHeading`, semantic
+ * `<h2>` sections inside a reading-measure container, and the shared admission
+ * `CTASection` close. It follows the same structure as the Privacy Policy page.
  *
- * Accurate to the site's model (M07 / M09): the terms reflect that this is a
- * static, client-only website with no accounts and no backend — enquiries open
- * a pre-filled WhatsApp/email draft on the visitor's device rather than being
- * transmitted to a CIBLE server — and a dedicated "Communications & Privacy"
- * section discloses the third-party (WhatsApp/Meta, email) handling and the
- * guardian expectation for under-18 visitors, linking to the Privacy Policy.
- * The copy is representative pre-launch text pending legal counsel / client
- * approval; that status is surfaced in a `role="note"` disclosure and no
- * effective date is asserted until publication.
+ * Lazily loaded by `src/App.jsx` through the shared `lazyWithRetry` helper and rendered
+ * INSIDE `<Layout>`, which owns the page chrome — the Navbar, the `<main>` landmark,
+ * the Footer, the floating conversion widgets and scroll-to-top. This file renders page
+ * CONTENT only; the document head belongs to `<Seo>` and `<StructuredData>`.
  *
- * Rendering contract: this component renders ONLY page content. The persistent
- * shell (Navbar, Footer, floating conversion widgets, ScrollToTop) is provided
- * by the routing `<Layout>`, while per-page document `<head>` output is handled
- * by the `<Seo>` and `<StructuredData>` helpers. It is lazy-loaded by
- * `src/App.jsx`:
- *   const Terms = lazy(() => import('./pages/Terms.jsx'))
- *   <Route path="terms" element={<Terms />} />
+ * ACCURATE TO THE SITE'S MODEL, which is what makes these terms defensible: this is a
+ * static, client-only site with no accounts and no backend, so the enquiry forms open a
+ * pre-filled WhatsApp chat or email draft on the visitor's own device rather than
+ * transmitting anything to a CIBLE server. A dedicated "Communications & Privacy"
+ * section discloses that third-party (WhatsApp/Meta, email) handling and the guardian
+ * expectation for under-18 visitors, and links to the Privacy Policy.
  *
- * Accessibility (WCAG AA): exactly one `<h1>` (the page header); every section
- * title is a semantic `<h2>`; the contact email and the Privacy Policy
- * reference are real links, and the contact address is sized to the site's 44px
- * minimum hit area (M12) so it is comfortably tappable. All styling flows
- * through the Tailwind `@theme` brand tokens defined in `src/index.css` on the
- * 8px spacing scale — radius included, so surfaces use the declared
- * `--radius-lg`/`--radius-2xl` steps rather than Tailwind's stock scale — with
- * no hardcoded or arbitrary values.
+ * PENDING LEGAL APPROVAL: the copy is representative pre-launch text that has not been
+ * reviewed by counsel or approved by the institute. That status is disclosed on the page
+ * itself in a `role="note"` panel, and no effective date is asserted until publication.
+ *
+ * Accessibility (WCAG AA): one `<h1>`; every section title is a semantic `<h2>`; the
+ * contact email and the Privacy Policy reference are real links, and the email link is
+ * sized to the site's 44px minimum hit area.
  */
 import { Link } from 'react-router-dom'
 import Seo from '../components/seo/Seo.jsx'
@@ -44,19 +34,17 @@ import Breadcrumbs from '../components/ui/Breadcrumbs.jsx'
 import CTASection from '../components/common/CTASection.jsx'
 import siteConfig from '../data/siteConfig.js'
 
-// Breadcrumb trail — the SAME `{ name, path }` shape is consumed by both the
-// visible <Breadcrumbs> trail and the Breadcrumb JSON-LD emitted by
-// <StructuredData>, keeping the rendered trail and structured data in agreement.
+// Module-local. The SAME `{ name, path }` shape feeds both the visible <Breadcrumbs>
+// and the BreadcrumbList JSON-LD, so the two cannot diverge.
 const crumbs = [
   { name: 'Home', path: '/' },
   { name: 'Terms & Conditions', path: '/terms' },
 ]
 
-// Representative terms copy, rewritten to match the site's actual client-only
-// model (M07 / M09). MUST be reviewed and finalized by the institute's legal
-// team before launch (AAP §0.7.2). Module-local. The Communications & Privacy
-// cross-reference to the Privacy Policy is rendered as explicit JSX below (so it
-// can carry a real <Link>), not from this string array.
+// Representative terms copy matching the site's client-only model, pending review by
+// the institute's legal team. Module-local. The Communications & Privacy section is NOT
+// in this array: it is rendered as explicit JSX below so it can carry a real <Link> to
+// the Privacy Policy.
 const sections = [
   {
     heading: 'Acceptance of Terms',
@@ -94,7 +82,6 @@ function Terms() {
       />
       <StructuredData breadcrumbs={crumbs} />
 
-      {/* Page header */}
       <Container as="section" className="py-12 md:py-16">
         <Breadcrumbs items={crumbs} className="mb-6" />
         <SectionHeading
@@ -106,10 +93,9 @@ function Terms() {
         />
       </Container>
 
-      {/* Prose body */}
       <Container as="section" className="max-w-3xl pb-16 md:pb-20">
-        {/* Draft / pending-approval disclosure (M09). No effective date is
-            asserted until these terms are reviewed by counsel and published. */}
+        {/* The pending-approval disclosure. No effective date is asserted until these
+            terms are reviewed by counsel and published. */}
         <div role="note" className="rounded-lg border border-border bg-secondary-50 p-4">
           <p className="text-sm leading-relaxed text-foreground">
             <strong className="font-semibold">Draft for review.</strong> These Terms &amp; Conditions are a
@@ -125,9 +111,9 @@ function Terms() {
           </div>
         ))}
 
-        {/* Communications & Privacy — explicit JSX so it can link to the Privacy
-            Policy and disclose third-party handling and the guardian expectation
-            for minors (M07). */}
+        {/* Explicit JSX rather than a `sections` entry so it can carry a real <Link> to
+            the Privacy Policy alongside the third-party-handling and guardian
+            disclosures. */}
         <h2 className="mt-8 mb-3 text-xl font-semibold text-foreground md:text-2xl">Communications &amp; Privacy</h2>
         <p className="text-muted leading-relaxed">
           When you contact us through WhatsApp or email, your message is handled by those third-party providers
@@ -142,19 +128,28 @@ function Terms() {
         <h2 className="mt-8 mb-3 text-xl font-semibold text-foreground md:text-2xl">Contact Us</h2>
         <p className="text-muted leading-relaxed">
           For questions about these Terms &amp; Conditions, contact us at{' '}
-          {/* Contact deep-link carries a 44px min hit area (M12), matching the
-              treatment Footer's <address> links and the Privacy Policy's contact
-              address already use: `inline-flex` keeps the anchor inline-level,
-              `min-h-11` (11 x 0.25rem = 44px on the 8px scale) grows the tap
-              target, and `items-center` re-centres the label inside that taller
-              box. No arbitrary value is involved — `min-h-11` is a declared step. */}
-          <a
-            href={siteConfig.emailHref}
-            className="inline-flex min-h-11 items-center font-medium text-primary-600 hover:underline"
-          >
-            {siteConfig.email}
-          </a>
-          .
+          {/* `inline-flex` keeps the anchor inline-level while letting `min-h-11` raise
+              it to the site's 44px minimum hit area, with `items-center` re-centring the
+              label in that taller box. The same treatment is used for the Footer's
+              address links and the Privacy Policy's contact address.
+
+              The `whitespace-nowrap` wrapper is REQUIRED, not decorative: `inline-flex`
+              makes the anchor an ATOMIC inline-level box, and CSS allows a soft-wrap
+              opportunity immediately after such a box, so the trailing full stop can
+              break onto a line of its own. Binding the two in one nowrap context keeps
+              them together, as they were when the address was plain inline text. The
+              space BEFORE the anchor stays outside the wrapper so the pair can still
+              move to the next line together at narrow widths. This mirrors
+              `src/pages/PrivacyPolicy.jsx` — one pattern for one problem. */}
+          <span className="whitespace-nowrap">
+            <a
+              href={siteConfig.emailHref}
+              className="inline-flex min-h-11 items-center font-medium text-primary-600 hover:underline"
+            >
+              {siteConfig.email}
+            </a>
+            .
+          </span>
         </p>
       </Container>
 

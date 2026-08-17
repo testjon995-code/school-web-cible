@@ -2,79 +2,42 @@
  * ComputerCourses — the CIBLE School of Language computer-track landing page
  * (route `/computer-courses`).
  *
- * Lazy-loaded by `src/App.jsx`
- * (`const ComputerCourses = lazy(() => import('./pages/ComputerCourses.jsx'))`,
- * `<Route path="computer-courses" element={<ComputerCourses />} />`) and
- * rendered INSIDE the shared `<Layout>`. The Layout owns the page chrome
- * (Navbar, `<main>` landmark, Footer, floating conversion widgets,
- * scroll-to-top), so this file renders ONLY the page's own content — never a
- * second `<main>` or navigation.
+ * Lazily loaded by `src/App.jsx` through the shared `lazyWithRetry` helper and
+ * rendered INSIDE `<Layout>`, which owns the page chrome — the Navbar, the `<main>`
+ * landmark, the Footer, the floating conversion widgets and scroll-to-top. This file
+ * renders page CONTENT only: it emits no second `<main>` and no navigation of its own.
  *
- * Scope: the institute's computer offerings, i.e. the courses whose
- * `category === 'Computer'` in the `courses` single source of truth
- * (`src/data/courses.js`) — Basic Computer and Digital Literacy. The list is
- * derived by filtering that data module rather than being hardcoded, so the
- * page automatically reflects any future additions to the Computer category.
+ * Scope: every course whose `category === 'Computer'` in `src/data/courses.js`
+ * (currently Basic Computer and Digital Literacy). The list is DERIVED from that
+ * module rather than hardcoded, so a course added to the category reaches this page
+ * and its JSON-LD without an edit here.
  *
- * Composition (reuse-first, zero duplication — every element is a shared
- * primitive/composite, never hand-rolled markup):
- * - `<Seo>`            — per-page title/description/canonical + Open Graph /
- *                        Twitter head tags. `title="Computer Courses"` resolves
- *                        to the document title
- *                        "Computer Courses | CIBLE School of Language".
- * - `<StructuredData>` — emits BreadcrumbList JSON-LD from `crumbs` (so the
- *                        visible trail and structured data agree) plus one
- *                        `Course` JSON-LD block per computer course, for
- *                        search-engine rich results (AAP §0.6.3 SEO).
- * - `<Container as="section">` — the single canonical width/gutter wrapper,
- *                        rendered as semantic `<section>` landmarks.
- * - `<Breadcrumbs>`    — the visible hierarchy trail (Home / Courses / Computer
- *                        Courses), sharing the exact `{ name, path }` shape
- *                        passed to `<StructuredData>`.
- * - `<SectionHeading as="h1">` — the page's ONE `<h1>` ("Computer Courses").
- *                        The two content sections below use the default `<h2>`.
- * - `<FeatureCard>`    — the four "what you'll learn" highlight tiles, each fed
- *                        a react-icons component reference from `benefits`.
- * - `<CourseGrid>`     — the responsive grid of `<CourseCard>`s, pre-filtered to
- *                        the computer courses via the `items` prop (no filter
- *                        chips — this is already a single-category page). Its
- *                        cards drive admission instead of self-linking: every
- *                        card is labelled "Apply Now" and targets
- *                        `/admission?course=<encodeURIComponent(title)>`, which
- *                        `Admission.jsx` matches back against the catalogue by
- *                        exact TITLE to preselect that course in the admission
- *                        form's "Course of Interest" field — so the title is a
- *                        frozen contract, not free text. The same label composes
- *                        each card's accessible name ("Apply Now — Basic
- *                        Computer"), naming the course a repeated CTA applies to.
- * - `<CTASection>`     — the reusable admission call-to-action that closes every
- *                        page. It offers four conversion channels (admission /
- *                        advisor / WhatsApp / call) ranked into THREE deliberate
- *                        emphasis tiers rather than four equally weighted
- *                        controls: one dominant admission action, two supporting
- *                        contact channels, and one low-emphasis `tertiary` call.
- *                        The tiers step down by size and fill, never by colour
- *                        alone, and each still clears the 44px touch-target
- *                        floor, so demoting a control never shrinks its hit
- *                        area. That component is the single authority for the
- *                        four button labels — all 18 consumers render it on its
- *                        defaults, so this page passes none and quotes none here
- *                        (a quoted label would go stale in 18 files the moment
- *                        the shared copy changed); its own tier table records the
- *                        exact wording.
+ * Composition — shared primitives only, nothing hand-rolled:
+ * - `<Seo>` / `<StructuredData>` — the per-page head tags, a BreadcrumbList built
+ *   from `crumbs`, and one `Course` block per computer course.
+ * - `<Breadcrumbs>` — the visible trail, fed the SAME `crumbs` array as the
+ *   BreadcrumbList, so the two cannot diverge.
+ * - `<SectionHeading as="h1">` — the page's ONE `<h1>`; the content sections keep the
+ *   component's default `<h2>`.
+ * - `<FeatureCard>` — the "what you'll learn" tiles, over `benefits`.
+ * - `<CourseGrid>` — the course grid, pre-filtered through `items`, so a
+ *   single-category page needs no filter chips. `ctaTo` points every card at
+ *   `/admission?course=<encodeURIComponent(title)>` and `Admission.jsx` matches that
+ *   value back against the catalogue by exact TITLE to preselect the course, which is
+ *   what makes the title a contract rather than free text.
+ * - `<RepresentativeNote>` — the shared point-of-claim disclosure, composed once in
+ *   the Programs band and worded to cover both classes of representative content on
+ *   this page: the discovery fields the cards render (flagged in the header of
+ *   src/data/courses.js) and the representative "What You'll Learn" copy above. It
+ *   self-hides when `siteConfig.representativeContent` is cleared, so the caveat
+ *   cannot outlive the placeholder content.
+ * - `<CTASection>` — the shared admission close. It owns both its tier ranking and its
+ *   button wording, so this page passes no props and quotes no labels; that component
+ *   is the single place either is recorded.
  *
- * Accessibility (WCAG AA): exactly one `<h1>` (the header SectionHeading);
- * section headings are `<h2>`; the FeatureCard tiles and CourseCards use `<h3>`
- * beneath their section `<h2>`, and the CTA closes with an `<h2>` — a logical,
- * gap-free heading outline. Sections are semantic `<section>` elements — no
- * page-level `<main>` (the Layout owns it).
- *
- * Styling: token-only Tailwind utilities on the 8px spacing scale
- * (`py-12`/`md:py-16`, `py-16`/`md:py-20`, `mt-10`, `mb-6`, `gap-6`) with the
- * white / `bg-surface` section-alternation convention used site-wide, a
- * responsive `grid` (1 → 2 → 4 columns for the benefits), no arbitrary values,
- * no hardcoded colors, and static classNames (no `cn` needed on this
- * presentational page).
+ * Accessibility (WCAG AA): one `<h1>`, section `<h2>`s, and `<h3>` tile and card
+ * titles — a gap-free outline. Sections are semantic `<section>` elements; the
+ * `<main>` landmark belongs to Layout.
  */
 import { FaDesktop, FaKeyboard, FaGlobe, FaFileWord } from 'react-icons/fa'
 import Seo from '../components/seo/Seo.jsx'
@@ -84,27 +47,32 @@ import SectionHeading from '../components/ui/SectionHeading.jsx'
 import Breadcrumbs from '../components/ui/Breadcrumbs.jsx'
 import CourseGrid from '../components/common/CourseGrid.jsx'
 import FeatureCard from '../components/common/FeatureCard.jsx'
+import RepresentativeNote from '../components/common/RepresentativeNote.jsx'
 import CTASection from '../components/common/CTASection.jsx'
 import { courses } from '../data/courses.js'
 
-// Breadcrumb trail for this page. Module-local (never exported) so the file's
-// only public export stays the `ComputerCourses` component. The identical array
-// is passed to both the visible <Breadcrumbs> and the <StructuredData>
-// BreadcrumbList so the trail and its JSON-LD never diverge.
+// Module-local (never exported) so the file's only public export stays the
+// `ComputerCourses` component. The identical array feeds both the visible
+// <Breadcrumbs> and the <StructuredData> BreadcrumbList, so the trail and its
+// JSON-LD cannot diverge.
 const crumbs = [
   { name: 'Home', path: '/' },
   { name: 'Courses', path: '/courses' },
   { name: 'Computer Courses', path: '/computer-courses' },
 ]
 
-// The computer-track courses, derived from the single source of truth so the
-// page and its Course JSON-LD stay in sync with the catalog. The category
-// literal MUST stay exactly 'Computer' — page routing/filtering depends on it.
+// Derived from the catalogue so the cards and their Course JSON-LD stay in sync with
+// it. The category literal MUST stay exactly 'Computer': it is the canonical value in
+// src/data/courses.js that routing and filtering match on.
 const computerCourses = courses.filter((c) => c.category === 'Computer')
 
-// Representative "what you'll learn" highlights — refine with genuine institute
-// copy before launch (AAP §0.7.2). `icon` holds a react-icons component
-// REFERENCE (passed through to <FeatureCard>, never rendered here).
+// Page-authored "what you'll learn" copy. It is representative rather than
+// institute-supplied, so it carries the same unconfirmed status as the catalogue's own
+// representative fields. `icon` holds a react-icons component REFERENCE that
+// <FeatureCard> renders decoratively — never a rendered element.
+// The Programs band's <RepresentativeNote> names these tiles to the visitor and
+// the Footer's site-wide notice covers the same class of descriptive copy, so the
+// unconfirmed status is disclosed on the page rather than only here.
 const benefits = [
   { icon: FaDesktop, title: 'Computer Basics', description: 'Hands-on fundamentals — OS, files, and everyday tools.' },
   { icon: FaFileWord, title: 'Office & Docs', description: 'Word processing, spreadsheets and presentations.' },
@@ -149,6 +117,33 @@ function ComputerCourses() {
 
       <Container as="section" className="py-16 md:py-20">
         <SectionHeading eyebrow="Programs" title="Computer Courses" subtitle="Start where you are." />
+        {/* Point-of-claim disclosure (AAP §0.2.4 / R7). This page shows TWO classes
+            of representative content, and this one note covers both because they
+            are the same promise read twice — what the track teaches, and what each
+            course in it involves:
+              • the discovery fields `CourseCard` renders (level, duration,
+                eligibility, suitableFor, prerequisites, highlights), every one of
+                them marked representative and "to be confirmed before launch" in
+                the header of src/data/courses.js; and
+              • the "What You'll Learn" tiles in the band above, whose `benefits`
+                array is flagged at its own declaration as representative copy.
+            Wording follows /courses (Courses.jsx) rather than being reinvented, so
+            the same claim reads identically wherever a visitor meets it, with one
+            clause added to name this page's benefit tiles. Placed directly under
+            the heading and above the grid — the band-7/band-10 shape on Home — so
+            the caveat is read BEFORE the cards it qualifies; `mt-8` (32px) against
+            the grid's `mt-10` deliberately binds the note to the content it
+            annotates. The site-wide Footer band names these same two classes; this
+            note is the point-of-claim half, and both are gated by the single
+            `siteConfig.representativeContent` flag so they retire together. */}
+        <RepresentativeNote className="mt-8">
+          Course details shown on these cards — the duration, level, eligibility,
+          who each course suits, any prerequisites and the listed highlights — and
+          the &ldquo;What You&rsquo;ll Learn&rdquo; highlights above are
+          representative and shown for demonstration. Please confirm the current
+          curriculum, entry requirements, batch timings and fees with the institute
+          before enrolling.
+        </RepresentativeNote>
         <div className="mt-10">
           <CourseGrid
             items={computerCourses}

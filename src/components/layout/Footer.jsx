@@ -21,7 +21,12 @@ import logoWhite from '../../assets/logo-white.svg'
  * official, and a slim `siteConfig.representativeContent` disclosure band
  * visibly marks the site as a non-production demo on every page while it runs
  * on representative sample content. Both disappear automatically once the
- * client supplies verified accounts/content and clears the flags.
+ * client supplies verified accounts/content and clears the flags. That band is
+ * the site-WIDE half of the content-truthfulness disclosure and its sentence is
+ * deliberately exhaustive — course details, representative records AND the
+ * descriptive marketing copy that has no data-module flag of its own — because
+ * anything it omits is disclosed nowhere but the point-of-claim
+ * `<RepresentativeNote>` panels. See the comment at the band itself.
  *
  * Reuse-first composition (AAP rule: never duplicate primitives): it composes
  * the canonical `ui/Container` for width/gutters and the canonical
@@ -58,9 +63,22 @@ import logoWhite from '../../assets/logo-white.svg'
  *   icons, footer legal links) meets the 44×44px minimum touch target (M12).
  * - The global `:focus-visible` ring (src/index.css) is left intact.
  *
- * Mobile clearance: the bottom bar uses `pb-20` (80px) on mobile, relaxing to
- * `lg:pb-8` (32px) on desktop, so the mobile-only `StickyBottomCTA` bar (fixed
- * at the viewport bottom, `lg:hidden`) never covers the copyright text.
+ * Fixed-control clearance (two axes, two mechanisms — both reservations live
+ * here because the floating widgets cannot make them for themselves):
+ * - VERTICAL: the bottom bar uses `pb-20` (80px) on mobile, relaxing to
+ *   `lg:pb-8` (32px) on desktop, so the mobile-only `StickyBottomCTA` bar (fixed
+ *   at the viewport bottom, `lg:hidden`) never covers the copyright text.
+ * - HORIZONTAL: from `sm` up, the legal-link group (`sm:mr-20`) and the
+ *   representative-content notice (`sm:mx-20`) reserve the rightmost 80px, which
+ *   is the column the fixed `FloatingCall` / `FloatingWhatsApp` anchors occupy
+ *   (`right-4` / `lg:right-6` plus 56px of width). Ordinary page content scrolls
+ *   out from under a viewport-anchored control; these are the document's last two
+ *   rows and cannot. Without the reservation the WhatsApp anchor covered the
+ *   "Terms" link completely at 1024 and 1280px — measured 41x44px with
+ *   `elementFromPoint` returning the widget, so the link was genuinely
+ *   unclickable — and both anchors clipped it at 768px. See the in-place comments
+ *   for the full measurements and for why the reservation is a margin here rather
+ *   than padding on `Container`.
  *
  * @param {object} [props]
  * @param {string} [props.className] Extra classes merged LAST via {@link cn}
@@ -179,25 +197,58 @@ function Footer({ className }) {
       </Container>
 
       {/* Representative-content disclosure (M02 / M03, AAP §0.7.2): while the
-          site runs on representative sample content — faculty, testimonials,
-          success stories, statistics, events, blog posts and opening hours
-          authored for demonstration rather than supplied and verified by the
-          institute — it
-          is visibly gated as a non-production demo on every page (the footer is
-          part of the persistent Layout). Driven by the single
-          `siteConfig.representativeContent` flag so it disappears the moment
-          real, client-approved content is provided and the flag is cleared.
-          Deliberately restrained (a slim muted band) to disclose honestly
-          without breaking the premium feel. */}
+          site runs on representative sample content, it is visibly gated as a
+          non-production demo on every page (the footer is part of the persistent
+          Layout). Driven by the single `siteConfig.representativeContent` flag so
+          it disappears the moment real, client-approved content is provided and
+          the flag is cleared. Deliberately restrained (a slim muted band) to
+          disclose honestly without breaking the premium feel.
+
+          COVERAGE — this band is the site-WIDE half of a two-part disclosure, so
+          its sentence has to name every class of representative content the site
+          renders, not only the ones held as records in `src/data/*`. It therefore
+          names three groups:
+            • the course-discovery fields `CourseCard` surfaces (duration, level,
+              eligibility, who a course suits, prerequisites, highlights), all
+              marked representative in the header of src/data/courses.js and
+              rendered on /courses, the three track pages and Home band 3;
+            • the representative RECORDS (faculty, testimonials, success stories,
+              statistics, events, blog posts, opening hours);
+            • the descriptive MARKETING copy about teaching, results and course
+              completion certificates — the class that includes Home band 4's
+              "Expert Faculty", "Proven Results" and "Recognized Certification"
+              cards and each track page's "What You'll Learn / Gain" tiles. That
+              copy is page prose rather than a data record, so it has no data-module
+              flag of its own and this band is where a visitor is told about it.
+          The other half is `<RepresentativeNote>`, composed point-of-claim next to
+          the specific content. Both halves are gated by the SAME flag, so neither
+          can be left stranded once verified content lands. Keep this sentence in
+          step with what the pages actually render: a new class of representative
+          content needs a word here as well as a note there. */}
       {siteConfig.representativeContent ? (
         <div className="border-t border-white/10 bg-black/20">
           <Container className="py-4">
-            <p className="text-center text-xs leading-relaxed text-primary-100">
+            {/* `sm:mx-20` applies the same fixed-control exclusion zone as the
+                bottom bar below (see the comment there for the measurements). This
+                band is the second-to-last row of the document, so it too cannot
+                scroll clear of the floating contact widgets, and the blue Call
+                anchor was measured sitting over the right-hand end of this text at
+                the document end. The inset is SYMMETRIC so the `text-center`
+                measure stays centred rather than drifting left, and it is a margin
+                on the paragraph rather than padding on the `Container` for the same
+                cascade reason. Below `sm` it is released: 160px of combined inset
+                would leave too little measure at 320px, and the widgets sit far
+                enough above this band once the bar's own `pb-20` mobile clearance
+                pushes it up. */}
+            <p className="text-center text-xs leading-relaxed text-primary-100 sm:mx-20">
               <span className="font-semibold text-white">Demo content notice:</span>{' '}
-              Faculty profiles, testimonials, success stories, statistics, events,
-              blog posts and opening hours shown here are representative samples
-              for demonstration and will be replaced with verified, client-approved
-              information before launch.
+              Course details (duration, level, eligibility, who a course suits,
+              prerequisites and highlights), faculty profiles, testimonials, success
+              stories, statistics, events, blog posts, opening hours and the
+              descriptive copy about our teaching, results and course completion
+              certificates are representative samples shown for demonstration, and
+              will be replaced with verified, client-approved information before
+              launch.
             </p>
           </Container>
         </div>
@@ -207,10 +258,67 @@ function Footer({ className }) {
           copy clear of the mobile-only fixed StickyBottomCTA bar. */}
       <div className="border-t border-white/10">
         <Container className="flex flex-col items-center justify-between gap-4 py-6 pb-20 text-sm text-primary-100 sm:flex-row lg:pb-8">
-          <p>
+          {/* `pr-16` is the same exclusion zone as the link group below, applied on
+              the axis this line actually needs it. Below `sm` the bar stacks, so this
+              paragraph is the row that runs closest to the fixed widget column: at
+              414px — and only at 414px — the sentence fits on a SINGLE line 363px
+              wide, which the flex column then centres at x=25..389, putting its tail
+              under the Call anchor at x=342. Measured 46.7 x 17px of real GLYPH
+              overlap: the line rendered as "…All rights res" with "erved." hidden
+              behind the blue disc. At 320/360/390 the same sentence wraps and its
+              box-level intersection with the disc falls in empty line leading with
+              zero glyph occlusion, so this was a single-width defect that the
+              `sm`-gated reservations could not reach. 64px puts the text box's right
+              edge at `100vw - 80px`, i.e. 8px clear of the 72px column below `lg`, by
+              arithmetic rather than by luck; because lines break on words rather than
+              filling the box, the measured GLYPH clearance is larger still — 34.1px
+              at 320, 16.5px at 360, 46.5px at 390 and 29.1px at 414, with per-line
+              `Range.getClientRects()` reporting zero intersections at all four. It
+              costs nothing visually either: at 320/360/390 the paragraph already
+              filled the available width and read left-aligned, so wrapping 64px
+              earlier keeps all four mobile widths consistent instead of leaving 414
+              as the odd one out. Released at `sm`, where `justify-between` puts this
+              line on the far LEFT of the row and the reservation belongs to the link
+              group on the right instead. */}
+          <p className="pr-16 sm:pr-0">
             © {new Date().getFullYear()} {siteConfig.name}. All rights reserved.
           </p>
-          <div className="flex items-center gap-4">
+          {/* FIXED-CONTROL EXCLUSION ZONE (`sm:mr-20`) — the one reservation the
+              floating contact widgets cannot make for themselves.
+
+              `FloatingCall` and `FloatingWhatsApp` are `position: fixed` at
+              `right-4` / `lg:right-6` and are 56px wide, so together they own the
+              rightmost 72px (80px from `lg`) of the VIEWPORT on every route. Page
+              content simply scrolls out from under a viewport-anchored control —
+              except for the last row of the document, which by definition cannot
+              scroll any further. This is that row, and from `sm` up
+              `justify-between` pins this link group to the container's right edge,
+              which is exactly where the widget column sits.
+
+              Measured before this reservation, scrolled to the document end: the
+              WhatsApp anchor covered "Terms" completely (41x44px, i.e. 100% of the
+              link) at both 1024 and 1280, with `elementFromPoint` at the link's
+              centre resolving to the widget's `<svg>` — the link was not merely
+              hard to hit, it was unclickable by mouse and touch. At 768 BOTH
+              anchors clipped it (41x8 + 41x12). "Privacy Policy" escaped by a
+              single pixel. Only >=1392px was clean, because there the centred
+              `max-w-7xl` container's edge finally lands left of the column.
+
+              The reservation goes here rather than on the widgets because AAP
+              §0.2.1 forbids removing existing functionality and the widgets' own
+              offsets are derived arithmetic that other files depend on: hiding,
+              shrinking or relocating either one would break both the Call/WhatsApp
+              sizing lock-step and the rule mandating prominent mobile contact
+              actions. `mr-20` (80px) clears the widest form of the column (80px at
+              `lg`) and leaves >=24px of measured slack at 640, 768, 1024, 1280,
+              1366 and 1440px. It is a MARGIN on this group rather than padding on
+              the `Container` on purpose: `pr-*` here would compete with
+              `Container`'s own `px-4 md:px-6` and the `md:` breakpoint would win
+              back the gutter at exactly the widths that need the reservation most.
+              Below `sm` the bar stacks and centres, which already keeps both links
+              out of the corner, so no reservation is applied — and none is wanted,
+              since 80px is a quarter of a 320px viewport. */}
+          <div className="flex items-center gap-4 sm:mr-20">
             <Link
               to="/privacy-policy"
               className="inline-flex min-h-11 items-center hover:text-white"

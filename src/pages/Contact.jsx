@@ -14,75 +14,63 @@ import siteConfig from '../data/siteConfig.js'
 import events from '../data/events.js'
 
 /**
- * Contact — the primary contact hub for the CIBLE School of Language SPA
- * (route `/contact`, lazy-loaded by `src/App.jsx` inside the shared `<Layout>`).
- * This component renders ONLY page content; the persistent Navbar, Footer and
- * floating conversion widgets are supplied by the Layout shell.
+ * Contact — the contact hub for CIBLE School of Language (route `/contact`).
  *
- * Conversion-first composition (AAP §0.6.3 — every page leads toward admission):
- * a page header, five contact cards (Call / WhatsApp / Email / Visit / Hours),
- * the validated `ContactForm`, a lazy `GoogleMap` embed of the institute, and the
- * shared admission `CTASection` closing the page. FOUR of the five cards carry a
- * direct action — Call Now, Message on WhatsApp, Send Email and "Open in Google
- * Maps" (the Visit Us directions action, m11) — so every contact channel is
- * actionable at the ≥44px touch floor the `Button` primitive owns. The fifth
- * card, Office Hours, is informational and correctly carries none. That map
- * action is the ONLY one in this page's own content: the `GoogleMap` embed below
- * renders the frame alone and contributes no competing link.
+ * Lazily loaded by `src/App.jsx` through the shared `lazyWithRetry` helper and rendered
+ * INSIDE `<Layout>`, which owns the page chrome — the Navbar, the `<main>` landmark, the
+ * Footer, the floating conversion widgets and scroll-to-top. This file renders page
+ * CONTENT only.
  *
- * Reuse-first / zero duplication: every UI element is one of the canonical
- * primitives — `Container` (width + gutters), `SectionHeading` (the single
- * page `<h1>`), `Breadcrumbs`, `Card`, `Button` (polymorphic; `href` renders a
- * semantic `<a>`), plus the composite `ContactForm`, `GoogleMap` and
- * `CTASection`. No raw element is restyled to imitate a primitive.
+ * Composition: a page header, five contact cards (Call / WhatsApp / Email / Visit /
+ * Hours), the validated `<ContactForm>`, a `<GoogleMap>` embed and the shared admission
+ * `<CTASection>` close. FOUR of the five cards carry a direct action; Office Hours is
+ * informational and correctly carries none.
  *
- * Single source of truth: all contact details (phone, WhatsApp/tel deep links,
- * email, address, opening hours, map embed) come from `siteConfig` — nothing is
- * hardcoded here, including the SEO meta description, which is composed from the
- * `siteConfig` locality/region/phone rather than duplicating those facts (m05).
- * The click-to-call (`tel:`) and email (`mailto:`) actions open in place while
- * the WhatsApp (`https://wa.me/…`) action opens in a new tab; that behaviour is
- * owned by the `Button` primitive from the scheme of `href`.
+ * ACTION OWNERSHIP — the "Open in Google Maps" control in the Visit Us card is the only
+ * map action in this route's content. `<GoogleMap>` renders the embed frame alone and
+ * exposes no link of its own, so nothing is duplicated and no control sits under an
+ * opaque cross-origin frame where it would be an invisible focus stop. The Footer's
+ * site-wide map link belongs to the Layout shell rather than this route; both resolve to
+ * the one `siteConfig.mapLink`.
  *
- * Event-aware entry (M22): the page's only hook is `useSearchParams`, used to
- * read an optional `?event=<slug>` set by the Events "Register" CTAs. The slug
- * is validated against the `events` single source of truth (an allowlist), and a
- * matching event pre-fills the ContactForm's Subject so the event's identity
- * survives the handoff; an unknown/absent slug is ignored.
+ * SINGLE SOURCE OF TRUTH: every contact detail — phone, WhatsApp and tel deep links,
+ * email, address, opening hours and the map link — comes from `siteConfig`, including the
+ * meta description, which is composed from its locality, region and phone rather than
+ * restating them. Whether an action opens in place or in a new tab is decided by the
+ * `Button` primitive from the scheme of `href`, not here.
  *
- * SEO: a unique `<Seo>` head (title → "Contact | CIBLE School of Language",
- * description, canonical `/contact`, Open Graph / Twitter) plus `<StructuredData
- * localBusiness breadcrumbs={crumbs} />`, which emits BOTH a LocalBusiness and a
- * BreadcrumbList JSON-LD block for this page.
+ * EVENT-AWARE ENTRY: the page's only hook is `useSearchParams`, reading an optional
+ * `?event=<slug>` set by the Events "Register" CTAs. The slug is validated against the
+ * `events` source of truth as an ALLOWLIST, so only a real event can pre-fill the form's
+ * Subject; anything missing or hand-edited is ignored.
  *
- * Accessibility (WCAG AA): exactly ONE `<h1>` (the page header). The five
- * contact-card labels are genuine section subheadings rendered as plain `<h2>`
- * (NOT `SectionHeading`, which owns the page-level heading) so the outline stays
- * logical. Leading icons are decorative (`aria-hidden="true"`) and the opening
- * hours are a real `<ul>`. Styling is token-only on the 8px spacing scale with
- * static classNames.
+ * SEO: a unique `<Seo>` head plus `<StructuredData localBusiness breadcrumbs>`, which
+ * emits both a LocalBusiness and a BreadcrumbList block for this page.
+ *
+ * Accessibility (WCAG AA): one `<h1>` (the page header). The five card labels are plain
+ * `<h2>` subheadings rather than `SectionHeading`, which owns the page-level heading, so
+ * the outline stays logical; the form and the map section are each named by their own
+ * `<h2>` through `aria-labelledby`; leading icons are decorative and the opening hours
+ * are a real `<ul>`.
  *
  * @returns {import('react').ReactElement} The Contact page content.
  */
 
-// Module-local (NOT exported) so the module exposes only the default Contact
-// component under `react/only-export-components`. The `{ name, path }` shape is
-// the shared breadcrumb contract consumed by BOTH the visible <Breadcrumbs>
-// trail and `breadcrumbSchema` (via <StructuredData breadcrumbs>), keeping the
-// rendered trail and the BreadcrumbList JSON-LD in agreement.
+// Module-local (NOT exported) so the module exposes only the default Contact component
+// under `react/only-export-components`. The identical array feeds both the visible
+// <Breadcrumbs> and the BreadcrumbList JSON-LD, so the two cannot diverge.
 const crumbs = [
   { name: 'Home', path: '/' },
   { name: 'Contact', path: '/contact' },
 ]
 
 function Contact() {
-  // Event-aware contact (M22): an Events "Register" CTA links here as
-  // `/contact?event=<slug>`. Validate the slug against the events single source
-  // of truth so ONLY a real event can pre-fill the form's Subject; any missing
-  // or hand-edited value is ignored (undefined → the form's blank default). The
-  // ContactForm keeps its Subject field in sync with this value, so navigating
-  // between different event links (or to plain /contact) never leaves a stale
-  // subject — the same integrity contract used by the Admission course preselect.
+  // An Events "Register" CTA links here as `/contact?event=<slug>`. The slug is checked
+  // against the events source of truth as an ALLOWLIST, so only a real event can
+  // pre-fill the Subject; anything missing or hand-edited resolves to undefined, which
+  // is the form's blank default. <ContactForm> keeps its Subject in sync with this
+  // value, so moving between event links — or to plain /contact — never leaves a stale
+  // subject behind.
   const [searchParams] = useSearchParams()
   const requestedEvent = searchParams.get('event')
   const matchedEvent = requestedEvent
@@ -90,9 +78,7 @@ function Contact() {
     : undefined
   const eventSubject = matchedEvent ? `Event registration: ${matchedEvent.title}` : undefined
 
-  // Meta description derived from the single source of truth (siteConfig) rather
-  // than hardcoding the locality/phone again (m05 — no contact facts duplicated
-  // outside siteConfig).
+  // Composed from `siteConfig` so no contact fact is restated outside it.
   const metaDescription = `Contact ${siteConfig.name} in ${siteConfig.addressParts.addressLocality}, ${siteConfig.addressParts.addressRegion}. Call ${siteConfig.phone}, message us on WhatsApp, email, or send an enquiry through our contact form.`
 
   return (
@@ -100,7 +86,6 @@ function Contact() {
       <Seo title="Contact" canonical="/contact" description={metaDescription} />
       <StructuredData localBusiness breadcrumbs={crumbs} />
 
-      {/* Page header */}
       <Container as="section" className="py-12 md:py-16">
         <Breadcrumbs items={crumbs} className="mb-6" />
         <SectionHeading
@@ -112,10 +97,8 @@ function Contact() {
         />
       </Container>
 
-      {/* Contact info + form (two columns on lg) */}
       <Container as="section" className="pb-16 md:pb-20">
         <div className="grid gap-8 lg:grid-cols-2">
-          {/* Left: contact details */}
           <div className="flex flex-col gap-4">
             <Card className="flex items-start gap-4 p-6">
               <FaPhone aria-hidden="true" className="mt-1 h-5 w-5 text-primary-600" />
@@ -149,26 +132,12 @@ function Contact() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Visit Us</h2>
                 <p className="mt-1 text-muted">{siteConfig.address}</p>
-                {/* Directions action (m11): the single canonical "open the location in
-                    Maps" action in this page's own content, and the replacement for the
-                    20px-tall affordance gate G11 measured. `GoogleMap` below renders the
-                    embed frame alone and exposes no link of its own (see its JSDoc), so
-                    this card is the one owner and nothing is duplicated — a control under
-                    an opaque cross-origin frame would be an invisible focus stop (WCAG
-                    2.4.7 Focus Visible) rather than a usable alternative. The embed is
-                    named separately by the `<iframe title>` that `GoogleMap` always
-                    applies, so no link on this route doubles as the frame's label. The
-                    Footer keeps its own site-wide map link, but that belongs to the
-                    persistent Layout shell rather than this route's content; both resolve
-                    to the one `siteConfig.mapLink`, so neither name leads anywhere
-                    different.
-                    Reuses the canonical `Button`, which supplies the ≥44px hit area
-                    (`min-h-11 min-w-11` + `sm` = `h-11`), the shared :focus-visible ring,
-                    the `sanitizeHref` scheme allowlist, and — because `mapLink` is an
-                    external https URL — `target="_blank" rel="noopener noreferrer"`
-                    applied AFTER the props spread. `outline`/`sm`/`mt-3` mirror the Email
-                    sibling exactly, keeping this a low-emphasis location affordance that
-                    never out-shouts the admission CTA. */}
+                {/* The route's one map action — see ACTION OWNERSHIP in the file header.
+                    It reuses the canonical `Button`, so the hit area, focus ring, scheme
+                    allowlist and external-link attributes all come from that primitive.
+                    Its variant and size mirror the Email sibling, keeping this a
+                    low-emphasis location affordance that never out-shouts the admission
+                    CTA. */}
                 <Button variant="outline" href={siteConfig.mapLink} size="sm" className="mt-3">Open in Google Maps</Button>
               </div>
             </Card>
@@ -188,10 +157,9 @@ function Contact() {
             </Card>
           </div>
 
-          {/* Right: contact form. The visible <h2> names the form via
-              `aria-labelledby={headingId}` (M17), giving it a programmatic
-              accessible name and a correct outline ancestor for the form's
-              result-panel <h3>s. */}
+          {/* The visible <h2> is passed to the form as `headingId`, which names it
+              through `aria-labelledby` and gives the form's result-panel <h3>s a correct
+              outline ancestor. */}
           <div>
             <h2 id="contact-form-heading" className="text-lg font-semibold text-foreground">
               Send us a message
@@ -205,13 +173,10 @@ function Contact() {
         </div>
       </Container>
 
-      {/* Map — a labelled landmark so assistive technology announces the region
-          by name (m06). The heading is visually hidden to preserve the existing
-          full-width map design (no Container is added, so the map's width is
-          unchanged); the GoogleMap primitive owns its own responsive box and the
-          embedded frame's own accessible name (its `title`). It contributes no
-          action of its own, so the directions control stays in the Visit Us card
-          above. */}
+      {/* A labelled landmark, so assistive technology can announce the region by name.
+          The heading is visually hidden because the map is deliberately full-width — no
+          Container wraps it — and <GoogleMap> owns both its own responsive box and the
+          embedded frame's accessible name. */}
       <section aria-labelledby="contact-map-heading">
         <h2 id="contact-map-heading" className="sr-only">
           Our location on the map

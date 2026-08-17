@@ -7,12 +7,11 @@ import { useScrollReveal, prefersReducedMotion, fadeUp } from '../../hooks/useSc
 import siteConfig from '../../data/siteConfig.js'
 
 /**
- * CTASection — the reusable admission call-to-action block that closes EVERY
- * page of the CIBLE School of Language website (AAP §0.6.3: "Every page ends
- * with an admission CTASection"). It is the site's primary conversion surface,
- * surfacing the four admission actions the ruleset requires on every page,
- * ranked into THREE deliberately distinct emphasis tiers so the funnel reads at
- * a glance instead of offering four equally weighted controls:
+ * CTASection — the reusable admission call-to-action block that closes EVERY page of
+ * the CIBLE School of Language website. It is the site's primary conversion surface,
+ * carrying the four admission actions every page needs, ranked into THREE deliberately
+ * distinct emphasis tiers so the funnel reads at a glance instead of offering four
+ * equally weighted controls:
  *
  *   Tier 1 — PRIMARY (dominant)
  *     1. Apply Now          → internal route /admission   (primary   · size lg)
@@ -22,35 +21,31 @@ import siteConfig from '../../data/siteConfig.js'
  *   Tier 3 — TERTIARY (low emphasis)
  *     4. Call {phone}       → siteConfig.phoneHref (tel:) (tertiary  · size md)
  *
- * The tiers are separated by MORE than colour (WCAG "never colour alone"):
- * tier 1 is the only `lg` control (48px tall, text-lg, px-8) and the only blue
- * fill; tier 2 steps down to `md` (44px, text-base, px-6); tier 3 drops the fill
- * AND the border and carries a persistent underline, so its lower emphasis is a
- * shape difference — and because it rests unfilled, `Button` gives it an explicit
- * pressed state (a deeper primary-100 wash plus a thickened underline) so the
- * press registers on touch, where there is no hover phase to rely on. Tier 3 is
- * the only action whose feedback is authored that way; the filled tiers already
- * swap their own fill. Inside tier 2 the orange/green split encodes the CHANNEL,
- * not the emphasis — both controls share one size and one fill weight, keeping
- * the site's colour-to-intent code intact (blue = navigation, orange =
- * considered admission actions, green = messaging). Every tier still clears the
- * 44px touch-target floor that Button enforces, so demoting a control never
- * shrinks its hit area.
+ * The tiers are separated by MORE than colour (WCAG "never colour alone"): tier 1 is
+ * the only `lg` control and the only blue fill; tier 2 steps down to `md`; tier 3 drops
+ * the fill AND the border and carries a persistent underline, so its lower emphasis is
+ * a shape difference — and because it rests unfilled, `Button` gives it an explicit
+ * pressed treatment so the press registers on touch, where there is no hover phase to
+ * rely on. Tier 3 is the only action whose feedback is authored that way; the filled
+ * tiers already swap their own fill. Inside tier 2 the orange/green split encodes the
+ * CHANNEL rather than the emphasis — both controls share one size and one fill weight,
+ * keeping the site's colour-to-intent code intact (blue for navigation, orange for
+ * considered admission actions, green for messaging). Every tier clears the 44px
+ * touch-target floor Button enforces, so demoting a control never shrinks its hit area.
  *
- * All four actions are retained by design: /admission and /contact are the
- * admission funnel, and the WhatsApp + click-to-call deep links are the mobile
- * contact affordances the ruleset requires. Emphasis is re-ranked here; nothing
- * is removed. Those mobile affordances are ALSO carried globally by
- * components/cta/{FloatingWhatsApp,FloatingCall,StickyBottomCTA}.jsx, mounted
- * once by Layout — this band must never fork another copy of them.
+ * All four actions are retained by design: /admission and /contact are the admission
+ * funnel, and the WhatsApp and click-to-call deep links are the mobile contact
+ * affordances the project rules require. Those affordances are ALSO carried globally by
+ * the three widgets in components/cta/, mounted once by Layout — this band must never
+ * fork another copy of them.
  *
- * LABEL OWNERSHIP — this file is the single authority for the wording of these
- * four actions. All 18 consumers render <CTASection /> on its defaults and pass no
- * labels, so the copy can be revised here alone. Consumer documentation must
- * therefore stay label-agnostic: describe the band by its four CHANNELS (admission
- * / advisor / WhatsApp / call), never by quoting the button text, because a quoted
- * label goes stale in 18 files the moment this band's copy changes. The tier table
- * above is the one place the exact labels are recorded.
+ * LABEL OWNERSHIP — this file is the single authority for the wording of these four
+ * actions. Every consumer renders <CTASection /> on its defaults and passes no labels,
+ * so the copy can be revised here alone. Consumer documentation must therefore stay
+ * label-agnostic: describe the band by its four CHANNELS (admission, advisor, WhatsApp,
+ * call) rather than by quoting the button text, because a quoted label goes stale in
+ * every consumer the moment this band's copy changes. The tier table above is the one
+ * place the exact labels are recorded.
  *
  * Reuse-first (zero duplication): this component composes the single canonical
  * {@link Container} width/gutter primitive and the single canonical polymorphic
@@ -66,35 +61,21 @@ import siteConfig from '../../data/siteConfig.js'
  * WhatsApp/Call mandate constrains their PRESENCE and hit area, not their
  * emphasis, so tier 3 lowers visual weight without lowering reachability.
  *
- * Styling — token-driven, zero hardcoded values and zero arbitrary bracket
- * utilities (Tailwind v4 @theme tokens from src/index.css, all on the 8px
- * spacing scale). The panel corner is `rounded-2xl` = --radius-2xl (1.25rem),
- * the brand step for large surfaces and the same one `Card` uses. The @theme
- * block declares exactly TWO radius steps (--radius-lg, --radius-2xl) and does
- * NOT redeclare any larger one, so reaching for a bigger built-in radius utility
- * here would silently fall through to Tailwind's own 1.5rem default and put a
- * third, off-system corner on the site's most-repeated panel. Keep it on token.
+ * Styling — token-driven, with zero hardcoded values and zero arbitrary bracket
+ * utilities (Tailwind v4 `@theme` tokens from src/index.css, all on the 8px spacing
+ * scale). The panel corner is the larger of the two brand radius steps, the same one
+ * `Card` uses. The @theme block declares exactly two radius steps and no larger one, so
+ * reaching for a bigger built-in radius utility here would fall through to Tailwind's
+ * own default and put a third, off-system corner on the site's most-repeated panel.
+ * Keep it on token.
  *
- * The panel is intentionally a LIGHT brand surface — a very subtle
- * blue→neutral→orange gradient tint — so every Button tier keeps WCAG-AA
- * contrast against it: the filled variants are locked to AA shades (primary-600,
- * secondary-700 ≈ 5.18:1, accent-700 — never secondary-600, which is only
- * ≈ 3.56:1 under white text), and the unfilled `tertiary` label reads
- * primary-700 ≈ 6.2:1 on this tint. A dark panel would break the filled buttons'
- * contrast, so it is deliberately avoided.
- *
- * NOTE ON TOKEN CLASS NAMES — the design brief illustrated the gradient/muted
- * tints as `from-primary/5`, `to-secondary/5`, and `text-muted-foreground`.
- * The committed @theme in src/index.css exposes SCALE color tokens
- * (--color-primary-600, --color-secondary-500, …) and the semantic token
- * --color-muted, but no bare --color-primary / --color-secondary /
- * --color-muted-foreground. Those bare/`-foreground` utilities therefore emit
- * NO CSS (verified with the Tailwind v4 compiler). To honor the brief's binding
- * rule — "@theme tokens only" — while preserving the exact visual intent, the
- * brand-anchor scale tokens and the real semantic token are used instead:
- *   from-primary/5        → from-primary-600/5   (brand blue anchor,  5% tint)
- *   to-secondary/5        → to-secondary-500/5   (brand orange anchor, 5% tint)
- *   text-muted-foreground → text-muted           (--color-muted, ~7.5:1 on white)
+ * The panel is intentionally a LIGHT brand surface — a very subtle blue → neutral →
+ * orange gradient tint — so every Button tier keeps WCAG AA contrast against it: the
+ * filled variants are locked to AA shades and the unfilled `tertiary` label stays AA on
+ * this tint (the ledger lives in src/index.css). A dark panel would break the filled
+ * buttons' contrast, so it is deliberately avoided. The gradient and muted tints use
+ * the brand-anchor SCALE tokens and the real semantic neutral, because this @theme
+ * exposes no bare or `-foreground` aliases and those utilities would emit no CSS.
  *
  * Animation — a single subtle fade-up reveal via framer-motion driven by
  * {@link useScrollReveal}, which fully respects `prefers-reduced-motion`: the
@@ -103,25 +84,25 @@ import siteConfig from '../../data/siteConfig.js'
  * NO enter animation for users who request reduced motion (WCAG 2.3.3). All
  * hooks are called unconditionally at the top level.
  *
- * Accessibility (WCAG AA) — one <h2> titles the section; the actions sit in a
- * flex row of real <Link>/<a> controls (keyboard-operable, focus-ring exposed
- * by the shared Button base). The leading icons are purely decorative
- * (`aria-hidden`), so each button is named entirely by its visible text label.
- * The emphasis tiers never rely on colour alone (see the tier table above), and
- * every control keeps the >= 44px hit area that Button's `min-h-11 min-w-11`
- * base enforces. The action row stacks vertically at the unprefixed base layer
- * and only becomes a wrapping row from `sm`, so all four controls stay fully
- * visible and tappable at 320px — below Tailwind's smallest breakpoint.
+ * Accessibility (WCAG AA) — one <h2> titles the section; the actions sit in a flex row
+ * of real <Link>/<a> controls, keyboard-operable with the focus ring the shared Button
+ * base exposes. The leading icons are decorative, so each button is named entirely by
+ * its visible text label. The emphasis tiers never rely on colour alone (see the tier
+ * table above), and every control keeps the ≥44px hit area Button enforces. The action
+ * row stacks vertically at the unprefixed base layer and only becomes a wrapping row
+ * from `sm`, so all four controls stay fully visible and tappable below Tailwind's
+ * smallest breakpoint.
  *
  * @param {object} props
  * @param {string} [props.title='Ready to shape your future?'] Section heading.
  * @param {string} [props.subtitle] Supporting line beneath the heading.
- * @param {string} [props.className] Extra classes merged LAST onto the root
- *   <section> via {@link cn} so callers can tune vertical rhythm / background
- *   without forking the component.
- * @param {object} [props.props] Any remaining props are forwarded to the root
- *   <section> (e.g. `id`, `aria-labelledby`, data-* attributes).
+ * @param {string} [props.className] Extra classes merged LAST onto the root <section>
+ *   via {@link cn} so callers can tune vertical rhythm or background without forking
+ *   the component.
  * @returns {import('react').ReactElement} The admission CTA section.
+ *
+ * Any remaining props (`id`, `aria-labelledby`, `data-*`, …) are forwarded to the root
+ * <section>.
  */
 export default function CTASection({
   title = 'Ready to shape your future?',
@@ -130,9 +111,9 @@ export default function CTASection({
   ...props
 }) {
   const { ref, inView } = useScrollReveal()
-  // Synchronous, SSR-safe read of prefers-reduced-motion (plain helper, not a
-  // hook). When true the panel mounts with `initial={false}` and renders at its
-  // final state with no fade-up reveal (WCAG 2.3.3).
+  // Synchronous, SSR-safe read of prefers-reduced-motion — a plain helper, not a hook.
+  // When true the panel mounts with `initial={false}` and renders at its final state
+  // with no fade-up reveal (WCAG 2.3.3).
   const reduce = prefersReducedMotion()
 
   return (
@@ -147,22 +128,22 @@ export default function CTASection({
         >
           <h2 className="text-3xl font-bold text-foreground md:text-4xl">{title}</h2>
           <p className="mx-auto mt-3 max-w-2xl text-muted">{subtitle}</p>
-          {/* Action row — column at the base layer so all four controls stack
-              cleanly at 320px, becoming a centered wrapping row from `sm`. The
-              tiers below are ranked by variant AND size together, never by
-              colour alone; see the tier table in the JSDoc above. */}
+          {/* Action row — a column at the base layer so all four controls stack cleanly
+              on the narrowest screens, becoming a centred wrapping row from `sm`. The
+              tiers are ranked by variant AND size together, never by colour alone; see
+              the tier table in the JSDoc. */}
           <div className="mt-8 flex flex-col flex-wrap items-center justify-center gap-4 sm:flex-row">
-            {/* Tier 1 — the admission action. The ruleset requires a clear
-                admission-focused CTA on every page and this band closes all 18,
-                so it is the single dominant control: the only `lg` size and the
-                only blue fill in the row. Never demote it. */}
+            {/* Tier 1 — the admission action. Every page needs a clear
+                admission-focused CTA and this band closes them all, so it is the single
+                dominant control: the only `lg` size and the only blue fill in the row.
+                Never demote it. */}
             <Button to="/admission" variant="primary" size="lg">
               Apply Now
             </Button>
-            {/* Tier 2 — supporting actions. Both step down to `md` (still 44px
-                tall), so the drop from tier 1 is size + type scale rather than
-                hue. Orange stays on the considered admission action and green
-                stays on the messaging channel, preserving colour-to-intent. */}
+            {/* Tier 2 — supporting actions. Both step down to `md` while staying above
+                the 44px floor, so the drop from tier 1 is size and type scale rather
+                than hue. Orange stays on the considered admission action and green on
+                the messaging channel, preserving colour-to-intent. */}
             <Button to="/contact" variant="secondary" size="md">
               Talk to an Advisor
             </Button>
@@ -170,31 +151,25 @@ export default function CTASection({
               <FaWhatsapp aria-hidden="true" className="h-5 w-5" />
               WhatsApp
             </Button>
-            {/* Tier 3 — the low-emphasis channel. `tertiary` removes the fill
-                and the border and keeps a persistent underline, so the step down
-                from tier 2 survives without colour vision. It stays a real,
-                full-size tel: control (Button's min-h-11 floor), so the mobile
-                click-to-call affordance is restrained, never diminished.
+            {/* Tier 3 — the low-emphasis channel. `tertiary` removes the fill and the
+                border and keeps a persistent underline, so the step down from tier 2
+                survives without colour vision, and it stays a real, full-size `tel:`
+                control on Button's 44px floor — restrained, never diminished.
 
-                `px-4 sm:px-6` is a measured 320px safeguard, not decoration.
-                This is the longest label in the band ("Call " + the dialling
-                code + the number, all read from siteConfig), and at 320px the
-                panel leaves exactly 240px of content width. Measured in-browser
-                at the `md` default of px-6 the control landed at 239.9px — a
-                0.1px margin, i.e. a tolerable text run of just 192px against an
-                Inter run of 191.9px. Because the control has a FIXED 44px height
-                (`h-11`), overshooting that run does not widen the box: the label
-                wraps to a second line and is clipped, which a horizontal-overflow
-                check cannot detect. 0.1px is finer than font metrics are stable
-                across Inter versions, platform fallback faces and rendering
-                stacks, so trimming the padding one step on the base layer raises
-                the tolerable run to 208px (~16px of real headroom) and costs
-                nothing visually — a `tertiary` control has no fill or border for
-                the padding to reveal, and `min-w-11` still holds the 44px
-                hit-area floor. `white-space` is deliberately left `normal`:
-                `nowrap` would trade this soft wrap for hard horizontal overflow,
-                the worse failure. From `sm` up the row is horizontal with room to
-                spare, so the standard px-6 rhythm resumes there. */}
+                The trimmed base padding is a narrow-viewport safeguard, not decoration.
+                This is the longest label in the band (the word "Call" plus the dialling
+                code and number, all read from siteConfig), and at the narrowest
+                supported width the panel leaves it almost no headroom at the default
+                padding. Because the control's height is fixed, overshooting the
+                available text run does not widen the box: the label wraps to a second
+                line and is clipped, which a horizontal-overflow check cannot detect.
+                Trimming one padding step on the base layer buys real headroom and costs
+                nothing visually — a `tertiary` control has no fill or border for the
+                padding to reveal, and the minimum-width floor still holds the 44px hit
+                area. `white-space` is deliberately left `normal`: preventing the wrap
+                would trade this soft wrap for hard horizontal overflow, the worse
+                failure. From `sm` up the row is horizontal with room to spare, so the
+                standard padding rhythm resumes. */}
             <Button
               href={siteConfig.phoneHref}
               variant="tertiary"

@@ -6,29 +6,25 @@ import Breadcrumbs from '../components/ui/Breadcrumbs.jsx'
 import CTASection from '../components/common/CTASection.jsx'
 import siteConfig from '../data/siteConfig.js'
 
-// Breadcrumb trail. The SAME array is passed to <Breadcrumbs> (visible trail)
-// and <StructuredData> (BreadcrumbList JSON-LD) so the two stay in agreement,
-// which is what search engines expect. Module-local, not exported.
+// Module-local, not exported. The SAME array feeds both the visible <Breadcrumbs> and
+// the BreadcrumbList JSON-LD, so the two cannot diverge.
 const crumbs = [
   { name: 'Home', path: '/' },
   { name: 'Privacy Policy', path: '/privacy-policy' },
 ]
 
-// Privacy-policy copy REWRITTEN to describe how this website ACTUALLY works
-// (M07 / M09): a static, client-only site with NO backend or database. The
-// forms do not transmit data to a CIBLE server — they open a pre-filled
-// WhatsApp or email draft on the visitor's own device, which is sent only if
-// the visitor presses send. The text therefore discloses the third parties that
-// process that message (WhatsApp/Meta and email providers) as well as the
-// third-party content the site itself loads (Google Fonts on every page and an
-// embedded Google Map on the Contact page, both of which send request data such
-// as the visitor's IP address to Google), corrects the earlier false
-// "analytics/collection/retention/deletion" claims, and addresses minors.
+// Module-local. The copy describes how this website actually works — a static,
+// client-only site with no backend or database, whose forms open a pre-filled WhatsApp
+// chat or email draft on the visitor's own device rather than transmitting anything to a
+// CIBLE server. It therefore discloses the third parties that process such a message
+// (WhatsApp/Meta and email providers), the third-party content the site itself loads
+// (Google Fonts on every page and the Contact page's embedded map, both of which send
+// request data such as the visitor's IP address to Google), the absence of any analytics
+// or tracking by CIBLE, and the guardian expectation for minors.
 //
-// This remains representative pre-launch copy: it MUST be reviewed by legal
-// counsel and approved by the institute before publication (AAP §0.7.2 —
-// authentic, legally-reviewed copy is client-supplied). That pending-approval
-// status is surfaced to visitors in the notice box below. Module-local.
+// PENDING LEGAL APPROVAL: this is representative pre-launch copy that has not been
+// reviewed by counsel or approved by the institute. That status is disclosed to visitors
+// in the notice panel below.
 const sections = [
   {
     heading: 'How This Website Works',
@@ -71,41 +67,27 @@ const sections = [
 /**
  * PrivacyPolicy — the `/privacy-policy` legal page for CIBLE School of Language.
  *
- * A readable, long-form legal-prose page that describes how the institute
- * handles the personal information visitors choose to share through the
- * website's WhatsApp and email enquiry forms. Critically, it reflects the
- * site's ACTUAL data-flow (M07 / M09): this is a static, client-only website
- * with no backend — forms open a pre-filled WhatsApp/email draft on the
- * visitor's device rather than transmitting data to a CIBLE server — so the
- * copy discloses the third parties (WhatsApp/Meta, email providers) that
- * process those messages, discloses the third-party content the site loads
- * (Google Fonts and the embedded Google Map, which send request data to
- * Google), clarifies that CIBLE itself performs no analytics/tracking, and
- * addresses minors. It is lazy-loaded by the route table in `src/App.jsx`
- * (`<Route path="privacy-policy" element={<PrivacyPolicy />} />`) and rendered
- * inside the shared `<Layout>`, so this component renders ONLY page content.
+ * Long-form legal prose describing how the institute handles the personal information
+ * visitors choose to share through the site's WhatsApp and email enquiry forms. What
+ * makes the policy defensible is that it reflects the site's ACTUAL data flow: a static,
+ * client-only site with no backend, whose forms open a pre-filled draft on the visitor's
+ * device rather than transmitting anything to a CIBLE server (the `sections` array above
+ * records the full set of disclosures that follow from this).
  *
- * Pending legal approval: the copy is representative pre-launch text that has
- * NOT yet been reviewed by legal counsel or approved by the institute; that
- * status is surfaced to visitors in a `role="note"` disclosure at the top of
- * the page, and no effective date is asserted until the policy is published.
+ * PENDING LEGAL APPROVAL: representative pre-launch text that has not been reviewed by
+ * counsel or approved by the institute. That status is disclosed on the page itself in a
+ * `role="note"` panel, and no effective date is asserted until publication.
  *
- * Reuse-first composition (zero duplication): the page is assembled entirely
- * from the canonical primitives — `<Seo>`/`<StructuredData>` for the head,
- * `<Container>` for width/gutters, `<SectionHeading>` for the single page
- * `<h1>`, `<Breadcrumbs>` for the hierarchy trail and `<CTASection>` for the
- * closing admission call-to-action that every page shares.
+ * Lazily loaded by `src/App.jsx` through the shared `lazyWithRetry` helper and rendered
+ * INSIDE `<Layout>`, which owns the page chrome, so this file renders page CONTENT only.
+ * It is assembled entirely from the canonical primitives — `<Seo>`/`<StructuredData>`,
+ * `<Container>`, `<SectionHeading>`, `<Breadcrumbs>` and the shared `<CTASection>`
+ * close.
  *
- * Semantics & accessibility (WCAG AA): exactly ONE `<h1>` (via
- * `<SectionHeading as="h1">`); every policy section title is a genuine `<h2>`
- * in document order; body copy is real long-form prose in semantic `<p>`
- * elements; the narrow `max-w-3xl` measure keeps line length comfortable; and
- * the contact address is a real, actionable `mailto:` link sized to the site's
- * 44px minimum hit area (M12) so it is comfortably tappable. All styling flows
- * through the Tailwind `@theme` brand tokens defined in `src/index.css` on the
- * 8px spacing scale — radius included, so surfaces use the declared
- * `--radius-lg`/`--radius-2xl` steps rather than Tailwind's stock scale — with
- * no hardcoded or arbitrary values.
+ * Accessibility (WCAG AA): one `<h1>`; every policy section title is a genuine `<h2>` in
+ * document order; the body is real prose in semantic `<p>` elements at a narrow reading
+ * measure; and the contact address is an actionable `mailto:` link sized to the site's
+ * 44px minimum hit area.
  *
  * @returns {import('react').ReactElement} The rendered privacy policy page.
  */
@@ -119,7 +101,6 @@ function PrivacyPolicy() {
       />
       <StructuredData breadcrumbs={crumbs} />
 
-      {/* Page header */}
       <Container as="section" className="py-12 md:py-16">
         <Breadcrumbs items={crumbs} className="mb-6" />
         <SectionHeading
@@ -131,10 +112,9 @@ function PrivacyPolicy() {
         />
       </Container>
 
-      {/* Prose body — narrow measure for readable long-form legal text */}
       <Container as="section" className="max-w-3xl pb-16 md:pb-20">
-        {/* Draft / pending-approval disclosure (M09). No effective date is
-            asserted until the policy is reviewed by counsel and published. */}
+        {/* The pending-approval disclosure. No effective date is asserted until the
+            policy is reviewed by counsel and published. */}
         <div role="note" className="rounded-lg border border-border bg-secondary-50 p-4">
           <p className="text-sm leading-relaxed text-foreground">
             <strong className="font-semibold">Draft for review.</strong> This Privacy Policy is a representative
@@ -156,25 +136,18 @@ function PrivacyPolicy() {
         </h2>
         <p className="text-muted leading-relaxed">
           If you have any questions about this Privacy Policy, please contact us at{' '}
-          {/* Contact deep-link carries a 44px min hit area (M12), matching the
-              treatment Footer's <address> links already use: `inline-flex` keeps
-              the anchor inline-level, `min-h-11` (11 x 0.25rem = 44px on the 8px
-              scale) grows the tap target, and `items-center` re-centres the label
-              inside that taller box.
+          {/* `inline-flex` keeps the anchor inline-level while letting `min-h-11` raise
+              it to the site's 44px minimum hit area, with `items-center` re-centring the
+              label in that taller box — the same treatment the Footer's address links
+              use.
 
-              The `whitespace-nowrap` wrapper is REQUIRED, not decorative. Giving
-              the anchor `inline-flex` makes it an ATOMIC inline-level box, and CSS
-              allows a soft-wrap opportunity immediately after such a box — so the
-              trailing full stop could break onto a line of its own. Measured: it
-              did exactly that at 414/768/1024/1280/1440px, because the prose
-              measure caps at `max-w-3xl` and leaves only ~2px after the address.
-              (As plain `inline` text the address and the full stop were a single
-              unbreakable run, since UAX #14 permits no break before FULL STOP.)
-              Keeping both inside one nowrap context restores that unbreakable
-              pairing at its original width, so wrapping matches the pre-change
-              layout exactly while the 44px target is retained. The space before
-              the anchor stays OUTSIDE the wrapper so the pair can still move to
-              the next line together at narrow widths. */}
+              The `whitespace-nowrap` wrapper is REQUIRED, not decorative: `inline-flex`
+              makes the anchor an ATOMIC inline-level box, and CSS allows a soft-wrap
+              opportunity immediately after such a box, so the trailing full stop can
+              break onto a line of its own. Binding the two in one nowrap context keeps
+              them together, as they were when the address was plain inline text. The
+              space BEFORE the anchor stays outside the wrapper so the pair can still
+              move to the next line together at narrow widths. */}
           <span className="whitespace-nowrap">
             <a
               href={siteConfig.emailHref}
