@@ -2,6 +2,8 @@ import { motion } from 'framer-motion'
 import Container from '../ui/Container.jsx'
 import SectionHeading from '../ui/SectionHeading.jsx'
 import Accordion from '../ui/Accordion.jsx'
+import Button from '../ui/Button.jsx'
+import EmptyState from '../ui/EmptyState.jsx'
 import { cn } from '../../lib/cn.js'
 import { useScrollReveal, prefersReducedMotion, fadeUp } from '../../hooks/useScrollReveal.js'
 import faq from '../../data/faq.js'
@@ -70,7 +72,33 @@ function isRenderableFaqItem(item) {
  * validated with {@link isRenderableFaqItem} so malformed data can neither throw
  * nor render blank disclosures. When the (optionally category-filtered) list is
  * empty, a meaningful, accessible no-results message is shown instead of an
- * empty bordered accordion shell.
+ * empty bordered accordion shell — and that message now renders through the
+ * SHARED `ui/EmptyState` primitive rather than the bordered `<p>` this
+ * component used to hand-roll. That is a de-duplication, not a new state: this
+ * branch was the model `EmptyState` was extracted from, so once the primitive
+ * existed, keeping a second implementation here would be exactly the duplicate
+ * component the project forbids. It is fixed HERE, in the shared component,
+ * precisely so every FAQ surface inherits it — the `/faq` page, a course detail
+ * route's cross-referenced questions, and anything added later. A page-level
+ * branch would have left this one alive and produced two implementations.
+ *
+ * Three details of that substitution are load-bearing:
+ * - `role="status"` is passed explicitly and is PRESERVED, because the
+ *   `'neutral'` tone forwards a caller-supplied role untouched through its
+ *   `...rest` spread (only `'caution'` pins `role="alert"`). The polite
+ *   announcement this branch has always made therefore survives verbatim.
+ * - `tone="neutral"` is correct and deliberate: a category with no matches is
+ *   nothing being wrong, so it must not be announced assertively as a failure.
+ * - The state answers BOTH of the visitor's questions, which is the primitive's
+ *   contract: the `title` says WHAT HAPPENED and the `emptyMessage`-backed
+ *   `description` explains it, while the `action` row says WHAT TO DO NEXT
+ *   using the shared `Button` (never a hand-rolled link, so the 44px target and
+ *   the global focus ring are inherited). "See all questions" is offered only
+ *   when the rendered set is actually NARROWED — a `category` filter, or
+ *   caller-supplied `items` — because from the unfiltered `/faq` view that link
+ *   would point back at the very page the visitor is already on. Contact is
+ *   always offered, as a route (`/contact`); no phone number or email address
+ *   is restated here, since those live only in `src/data/siteConfig.js`.
  *
  * State identity (I-58): `ui/Accordion` tracks its open panels by positional
  * index. To stop a stale index from staying open on a DIFFERENT question after
@@ -78,11 +106,41 @@ function isRenderableFaqItem(item) {
  * accordion is keyed by the identity of the current question set, so React
  * remounts it with a fresh, correct open state whenever that set changes.
  *
+ * Fragment addressing: a single question can be addressed by URL as
+ * `#faq-<id>`, where `<id>` is the record's own `faq[].id`. Two separate
+ * mechanisms make that work, and they are NOT interchangeable with the
+ * `listKey` above:
+ * - `itemIds` (derived here, not a prop) makes each disclosure's DOM id
+ *   PREDICTABLE. It is built as `list.map((f) => f.id ?? null)` — mapped over
+ *   the ALREADY VALIDATED, already category-filtered `list`, i.e. the very array
+ *   handed to `ui/Accordion` — because the accordion reads that array
+ *   POSITIONALLY and requires it to be equal-length with `items`. Deriving it
+ *   from `list` makes the alignment hold by construction. A record with no `id`
+ *   contributes a `null` HOLE, and those holes must NEVER be filtered or
+ *   compacted away: the accordion substitutes its generated `useId`-plus-index
+ *   id for a `null` slot, whereas REMOVING a slot would shift every later id
+ *   onto the wrong item. A mixed set (some records with ids, some without) is
+ *   therefore fully supported, and callers that supply records with no ids at
+ *   all get character-for-character the identifiers they always got.
+ * - `openIds` (a pass-through prop) decides which of those addressed panels
+ *   starts OPEN. `src/pages/Faq.jsx` passes the fragment's id so the panel is
+ *   already open before anything is measured — the first step of its ordered
+ *   open -> scroll -> focus sequence. The accordion treats it as an
+ *   INITIAL-open set resolved against `itemIds`, not as full control, so this
+ *   component owns no new state and a caller that passes nothing keeps the
+ *   closed-on-mount behavior exactly.
+ * `listKey` solves a third, unrelated problem — RESETTING open state when the
+ * visible set changes — so it stays in place alongside both of them.
+ *
  * Styling flows entirely through Tailwind `@theme` brand tokens/utilities on
  * the project's 8px spacing scale (`py-16`/`md:py-24`, `mt-8`, `max-w-3xl`,
- * `rounded-2xl`, `border-border`, `text-muted`); there are no hardcoded or
- * arbitrary `[..]` values, and the caller `className` is merged LAST via
- * {@link cn} so callers can extend or override.
+ * `sr-only`); there are no hardcoded or arbitrary `[..]` values, and the caller
+ * `className` is merged LAST via {@link cn} so callers can extend or override.
+ * This component declares NO surface styling of its own: the disclosure surface
+ * belongs to `ui/Accordion`, the no-results surface (radius, hairline border,
+ * `bg-surface` fill, muted body copy) to `ui/EmptyState` over `ui/Card`, and the
+ * next-step controls to `ui/Button` — so no token, utility or stylesheet rule is
+ * added anywhere for this section.
  *
  * Accessibility (WCAG AA):
  * - Heading levels are configurable (I-59). By default `SectionHeading` renders
@@ -118,8 +176,21 @@ function isRenderableFaqItem(item) {
  *   level below the section title.
  * @param {boolean} [props.allowMultiple=false] Forwarded to `ui/Accordion`:
  *   when `true`, multiple panels may be open at once; otherwise one at a time.
- * @param {import('react').ReactNode} [props.emptyMessage] Content shown when
- *   there are no renderable questions (e.g. a category with no matches).
+ * @param {string[]} [props.openIds=[]] Ids of questions — matched against each
+ *   record's own `faq[].id` — that should START open, forwarded verbatim to
+ *   `ui/Accordion`'s `openIds`. Intended for URL-fragment addressing
+ *   (`/faq#faq-<id>`): supplying the id opens that panel on the FIRST paint, so
+ *   the caller can scroll it into view and focus it with nothing to re-measure.
+ *   It is an INITIAL-open set, not full control — the visitor's own toggling
+ *   takes over afterwards, and the set is re-applied only when the request
+ *   genuinely changes. Unknown, blank or duplicate-rejected ids are ignored
+ *   silently, and the default empty array means "nothing requested", i.e. the
+ *   unchanged closed-on-mount behavior.
+ * @param {import('react').ReactNode} [props.emptyMessage] The explanatory
+ *   sentence shown when there are no renderable questions (e.g. a category with
+ *   no matches). Rendered as the `description` of the shared `ui/EmptyState`,
+ *   beneath a short title and above the next-step actions, so custom wording
+ *   from a caller keeps working and keeps its prominence.
  * @param {string} [props.className] Extra classes merged onto the root
  *   `<section>` after the defaults.
  * @returns {import('react').ReactElement} The rendered FAQ section.
@@ -134,6 +205,7 @@ function FAQ({
   headingLevel = 2,
   questionHeadingLevel,
   allowMultiple = false,
+  openIds = [],
   emptyMessage = 'No questions are available here yet. Please call or WhatsApp us and we will be happy to help.',
   className,
   ...props
@@ -173,6 +245,37 @@ function FAQ({
   // visible set is unchanged (no needless remounts).
   const listKey = `${category ?? 'all'}:${list.length}:${list.map((f) => f.question ?? f.title).join('\n')}`
 
+  // Per-item id suffixes for `ui/Accordion`, so a question can be addressed by
+  // the `#faq-<id>` URL fragment (and opened via `openIds`) instead of depending
+  // on an unpredictable `useId()` value. Mapped over `list` — the exact array
+  // passed to the accordion, AFTER category filtering and validation — because
+  // the accordion reads this array POSITIONALLY and requires it to be
+  // equal-length with `items`; deriving it from `list` makes that alignment hold
+  // by construction. A record without an `id` contributes a `null` hole, which
+  // the accordion fills with its generated `useId`-plus-index id. NEVER filter
+  // or compact the holes out: removing a slot would shift every later id onto
+  // the WRONG item, which is the precise failure this shape exists to prevent.
+  const itemIds = list.map((f) => f.id ?? null)
+
+  // Whether the rendered set is a NARROWED view of the site FAQ — either
+  // explicitly filtered by `category`, or a caller-supplied subset (e.g. a
+  // course detail route passing only its cross-referenced questions). It gates
+  // the "See all questions" affordance in the empty state below: from the
+  // unfiltered /faq view that link would point straight back at the page the
+  // visitor is already on, which is not a next step.
+  const isNarrowed = Boolean(category) || items !== faq
+
+  // WHAT HAPPENED, stated accurately rather than generically: the reason the set
+  // is empty differs between a category that matched nothing, a caller-supplied
+  // subset with nothing renderable in it, and a genuinely empty FAQ dataset.
+  // Naming the real reason is what makes this an explanation instead of a
+  // placeholder; the WHAT-NEXT half is carried by the actions below.
+  const emptyTitle = category
+    ? 'No questions in this category yet'
+    : isNarrowed
+      ? 'No questions in this section yet'
+      : 'No questions available yet'
+
   return (
     <section className={cn('py-16 md:py-24', className)} {...props}>
       <Container className="max-w-3xl">
@@ -204,14 +307,45 @@ function FAQ({
               items={list}
               allowMultiple={allowMultiple}
               headingAs={questionAs}
+              itemIds={itemIds}
+              openIds={openIds}
             />
           ) : (
-            <p
+            // I-57: the no-results state renders through THE shared
+            // `ui/EmptyState` primitive, so this component holds no second
+            // empty-state implementation of its own.
+            // - `role="status"` is passed explicitly and kept: the `neutral`
+            //   tone forwards a caller role untouched, so the polite
+            //   announcement this branch has always made is preserved. (Only
+            //   `caution` pins `role="alert"`, which would wrongly frame "this
+            //   category has no questions" as a failure.)
+            // - `headingAs={questionAs}` puts the title at the depth the
+            //   questions themselves would have occupied, so the outline stays
+            //   correct whether this section owns its heading or is embedded.
+            // - The caller's `emptyMessage` becomes the description, and the
+            //   actions supply the next step. Contact is always offered as a
+            //   ROUTE (no phone number or email restated here — those live only
+            //   in siteConfig); "See all questions" appears only for a narrowed
+            //   view, where widening it is genuinely a different destination.
+            <EmptyState
               role="status"
-              className="rounded-2xl border border-border bg-white px-6 py-8 text-center text-muted"
-            >
-              {emptyMessage}
-            </p>
+              tone="neutral"
+              headingAs={questionAs}
+              title={emptyTitle}
+              description={emptyMessage}
+              action={
+                <>
+                  {isNarrowed ? (
+                    <Button to="/faq" variant="primary">
+                      See all questions
+                    </Button>
+                  ) : null}
+                  <Button to="/contact" variant={isNarrowed ? 'outline' : 'primary'}>
+                    Contact us
+                  </Button>
+                </>
+              }
+            />
           )}
         </motion.div>
       </Container>

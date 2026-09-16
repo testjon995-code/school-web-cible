@@ -51,6 +51,11 @@ import { cn } from '../../lib/cn.js'
  *     would imply the panel itself is clickable.
  * The action row reuses the proven `flex flex-wrap gap-3` treatment from those
  * same panels, so two or three actions WRAP instead of overflowing at 320px.
+ * The text block is likewise overflow-safe: it is a flex item carrying
+ * `min-w-0 w-full` and its title and description carry `break-words`, so an
+ * unbreakable token a caller interpolates into the copy (a URL, an email, an
+ * unknown slug echoed back in an unavailable-content message) breaks inside the
+ * card instead of widening it past the viewport. Ordinary prose is unaffected.
  * `action` is a node, so callers compose real <Button>s and inherit the 44px
  * touch-target floor and the global `:focus-visible` ring automatically — this
  * component re-declares neither.
@@ -261,12 +266,29 @@ function EmptyState({
       ) : null}
 
       {hasText ? (
-        <div>
+        // `min-w-0 w-full` is load-bearing, not decoration. This wrapper is a
+        // flex ITEM, so without `min-w-0` its `min-width` resolves to `auto` and
+        // it can never shrink below the min-content width of its own text — a
+        // single unbreakable token (a URL, an email address, a long slug echoed
+        // back in an unavailable-content message) therefore widens this block
+        // past the card, past the container and past the viewport, which was
+        // measured at 407px against a 320px viewport before this was added.
+        // `w-full` restores the full-width column child that `items-start`
+        // otherwise shrink-wraps, so normal copy renders exactly as before.
+        // Paired with `break-words` below, the token now breaks inside the box.
+        <div className="min-w-0 w-full">
           {title ? (
-            <Heading className={cn('text-xl font-bold', toneStyles.title)}>{title}</Heading>
+            <Heading className={cn('text-xl font-bold break-words', toneStyles.title)}>
+              {title}
+            </Heading>
           ) : null}
           {description ? (
-            <p className={cn('text-muted', title ? 'mt-2' : null)}>{description}</p>
+            // `break-words` (overflow-wrap: break-word) is the defensive pattern
+            // every constrained text container in this codebase uses: it changes
+            // nothing for ordinary prose and only engages when a single word is
+            // wider than the line, which is precisely the empty-state case where
+            // a caller interpolates an identifier into the copy.
+            <p className={cn('text-muted break-words', title ? 'mt-2' : null)}>{description}</p>
           ) : null}
         </div>
       ) : null}

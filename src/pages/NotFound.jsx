@@ -1,4 +1,3 @@
-import { Helmet } from 'react-helmet-async'
 import Seo from '../components/seo/Seo.jsx'
 import Container from '../components/ui/Container.jsx'
 import SectionHeading from '../components/ui/SectionHeading.jsx'
@@ -15,14 +14,17 @@ import CTASection from '../components/common/CTASection.jsx'
  * `const NotFound = lazy(() => import('./pages/NotFound.jsx'))` for route-level
  * code splitting, hence the required `export default`.
  *
- * SEO — this is the single documented exception that imports `Helmet` directly.
- * The canonical {@link Seo} head component intentionally exposes no `noindex`
- * prop (its API is `{ title, description, canonical, image, type }`), yet a 404
- * response must never be indexed. So the page pairs `<Seo>` (title +
- * description, and deliberately NO `canonical` — an error page has no canonical
- * URL of its own) with a sibling `<Helmet>` that injects
+ * SEO — a 404 response must never be indexed, so the page passes `noindex` to
+ * the canonical {@link Seo} head component, which emits
  * `<meta name="robots" content="noindex, follow" />`: search engines skip
- * indexing the page while still following its recovery links.
+ * indexing the page while still following its recovery links below. `Seo` is
+ * the SINGLE noindex mechanism in the codebase — no page module hand-rolls a
+ * sibling head block for it, which also guarantees the robots tag is emitted
+ * exactly ONCE, because the underlying head manager appends tags rather than
+ * replacing them. It still deliberately supplies NO `canonical`: the catch-all
+ * renders under ANY unmatched path, so it has no canonical URL of its own, and
+ * `Seo` emits a canonical `<link>` and `og:url` only for a page that provides
+ * one — never self-canonicalising every unknown URL to the homepage.
  *
  * Conversion-first UX — rather than a dead end, the page offers three
  * token-styled {@link Button}s that route (client-side, via react-router
@@ -45,10 +47,8 @@ function NotFound() {
       <Seo
         title="Page Not Found"
         description="The page you are looking for could not be found. Explore CIBLE School of Language courses or apply for admission."
+        noindex
       />
-      <Helmet>
-        <meta name="robots" content="noindex, follow" />
-      </Helmet>
 
       <Container as="section" className="py-20 text-center md:py-28">
         <p className="text-6xl font-extrabold text-primary-600 md:text-7xl">404</p>

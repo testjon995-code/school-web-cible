@@ -6,13 +6,13 @@ import Input from '../ui/Input.jsx'
 import Textarea from '../ui/Textarea.jsx'
 import Button from '../ui/Button.jsx'
 import { cn } from '../../lib/cn.js'
+import { dispatchEnquiry } from '../../lib/enquiry.js'
 import {
   nameRules,
   emailRules,
   phoneRules,
   subjectRules,
   messageRules,
-  truncate,
   MAX_LENGTHS,
 } from '../../lib/validators.js'
 import { siteConfig } from '../../data/siteConfig.js'
@@ -28,6 +28,16 @@ import { siteConfig } from '../../data/siteConfig.js'
  * Composition over ad-hoc markup: every field is one of the canonical `ui/*`
  * primitives (`Input`, `Textarea`) and every action is the canonical `Button`.
  *
+ * One outbound path: message composition, length clamping, URL encoding and the
+ * channel handoff itself all belong to `lib/enquiry.js`, the single owner of
+ * outbound enquiry dispatch (AAP §0.2.3), which this form and `AdmissionForm`
+ * share so exactly one implementation of that path exists. This component keeps
+ * what is genuinely its own: it reads the endpoints from `siteConfig` and passes
+ * them in (the seam imports no configuration), composes its own field labels and
+ * `mailto:` subject line, owns the `submittingRef` duplicate-submit guard, and
+ * owns the four honest states below. Behaviour is unchanged by that split — the
+ * composed body and both channel URLs are the same strings as before.
+ *
  * Truthful handoff (M04): opening a pre-filled WhatsApp/mail draft is NOT a
  * send. The form never claims the message was received; after the draft opens
  * it shows a "ready to send" panel telling the visitor to press Send, keeps
@@ -36,14 +46,21 @@ import { siteConfig } from '../../data/siteConfig.js'
  * `role="alert"` recovery panel instead of a false success.
  *
  * No manufactured latency (M05): the deep link opens SYNCHRONOUSLY inside the
- * handler (preserving the user gesture); there is no artificial `setTimeout`,
- * no fetch/XHR, and therefore no timer to leak across unmount. A `submittingRef`
- * guards against a double-submit dispatching two drafts.
+ * handler (preserving the user gesture). `dispatchEnquiry` is declared `async`
+ * so this component is written against a Promise from day one, but it is CALLED
+ * synchronously here and opens the channel in that first synchronous run — only
+ * the outcome handling is deferred to a microtask. There is no artificial
+ * `setTimeout`, no fetch/XHR, no simulated pending phase and therefore no timer
+ * to leak across unmount, and deliberately NO `submitting` state. A
+ * `submittingRef` guards against a double-submit dispatching two drafts.
  *
  * Bounded, validated input (M06): values are trimmed, character- and
  * length-constrained by the shared `lib/validators` rules (name pattern,
- * email/phone validation, subject/message caps), carry native `maxLength`
- * attributes, and the assembled body is clamped to a total-channel limit.
+ * email/phone validation, subject/message caps) and carry native `maxLength`
+ * attributes. The two defensive clamps on the handoff string — per field, then
+ * once more on the assembled body against the total-channel limit — are applied
+ * by `lib/enquiry.js`; this form passes each field's `MAX_LENGTHS` cap alongside
+ * its value so the per-field bound reaches that clamp unchanged.
  *
  * Privacy at handoff (M07): a disclosure adjacent to the submit controls
  * explains the WhatsApp/Meta / email-provider processing and links to the
@@ -64,24 +81,6 @@ import { siteConfig } from '../../data/siteConfig.js'
  *   when it changes so a stale subject is never submitted.
  * @returns {import('react').ReactElement} The accessible, validated contact form.
  */
-
-// Total-channel cap (M06): a final defensive clamp on the ASSEMBLED body, on top
-// of the per-field caps, so the outbound URL can never balloon. Module-local.
-const MAX_CHANNEL_TEXT = 1600
-
-// Module-local (NOT exported) so the module exposes only the default component
-// export and stays clean under `react/only-export-components`. Serialises the
-// validated field values into the plain-text body shared by both channels, with
-// each value defensively clamped by `truncate` (M06).
-const buildMessage = (data) =>
-  [
-    'New Contact Message — CIBLE School of Language',
-    `Name: ${truncate(data.name, MAX_LENGTHS.name)}`,
-    `Email: ${truncate(data.email, MAX_LENGTHS.email)}`,
-    `Phone: ${truncate(data.phone, MAX_LENGTHS.phone)}`,
-    `Subject: ${truncate(data.subject, MAX_LENGTHS.subject)}`,
-    `Message: ${truncate(data.message, MAX_LENGTHS.message)}`,
-  ].join('\n')
 
 function ContactForm({ className, headingId, defaultSubject } = {}) {
   const {
@@ -132,36 +131,61 @@ function ContactForm({ className, headingId, defaultSubject } = {}) {
   }
 
   // Curried submit handler: `channel` selects the delivery method, and the inner
-  // function receives the validated form data from `handleSubmit`. The outbound
-  // navigation happens SYNCHRONOUSLY to keep the user gesture intact; there is
-  // no fake latency and no network call (M05).
-  const sendMessage = (channel) => (data) => {
+  // function receives the validated form data from `handleSubmit`. Composing the
+  // body, clamping it, encoding it and opening the channel are delegated to
+  // `lib/enquiry.js`; this handler supplies the labelled field set in the order
+  // the institute reads it, the `mailto:` subject line, and the endpoints read
+  // from `siteConfig` (the seam imports no configuration of its own).
+  //
+  // `dispatchEnquiry` is awaited, but it is CALLED synchronously from here: it
+  // composes the URL and opens the channel in this first synchronous run, inside
+  // the user gesture, and only the outcome handling below is deferred to a
+  // microtask. Deferring the call itself — behind a timer, a `.then()`, or an
+  // `await` placed in front of it — would cost that gesture and turn the
+  // WhatsApp tab into an intermittently blocked popup. There is still no fake
+  // latency, no network call and no `submitting` state (M05).
+  const sendMessage = (channel) => async (data) => {
     if (submittingRef.current) return // duplicate-submit guard (M05)
     submittingRef.current = true
     try {
-      const text = truncate(buildMessage(data), MAX_CHANNEL_TEXT)
-      if (channel === 'email') {
-        const subject = `CIBLE Website Contact: ${truncate(data.subject, MAX_LENGTHS.subject)}`
-        const mailUrl = `${siteConfig.emailHref}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`
-        setDraftUrl(mailUrl)
-        setDraftChannel('email')
-        window.location.href = mailUrl
-        setStatus('opened')
-      } else {
-        const waUrl = `${siteConfig.whatsappHref}?text=${encodeURIComponent(text)}`
-        setDraftUrl(waUrl)
-        setDraftChannel('whatsapp')
-        // Open WITHOUT 'noopener' so the return value reliably reports a blocked
-        // popup; sever the opener reference manually to keep the same posture.
-        const win = window.open(waUrl, '_blank')
-        if (!win) {
-          setStatus('blocked')
-          return
-        }
-        win.opener = null
-        setStatus('opened')
+      // Each field carries its own `MAX_LENGTHS` cap so the shared per-field
+      // clamp reproduces the previous body line for line (M06). The email
+      // subject is composed per submission from the visitor's own Subject field
+      // — which is why it is a payload member rather than derived from the
+      // heading — and is clamped by the seam as the `mailto:` URL is composed.
+      const payload = {
+        heading: 'New Contact Message — CIBLE School of Language',
+        fields: [
+          { label: 'Name', value: data.name, max: MAX_LENGTHS.name },
+          { label: 'Email', value: data.email, max: MAX_LENGTHS.email },
+          { label: 'Phone', value: data.phone, max: MAX_LENGTHS.phone },
+          { label: 'Subject', value: data.subject, max: MAX_LENGTHS.subject },
+          { label: 'Message', value: data.message, max: MAX_LENGTHS.message },
+        ],
+        emailSubject: `CIBLE Website Contact: ${data.subject}`,
       }
+      const result = await dispatchEnquiry(payload, {
+        channel,
+        whatsappHref: siteConfig.whatsappHref,
+        emailHref: siteConfig.emailHref,
+      })
+      // Stash the composed deep link the seam hands back so both the 'opened'
+      // and 'blocked' panels can offer a directly clickable link to (re-)open it.
+      if (result.draftUrl) setDraftUrl(result.draftUrl)
+      setDraftChannel(result.channel)
+      if (result.status === 'error') {
+        submittingRef.current = false // re-arm so the visitor can retry
+        setStatus('error')
+        return
+      }
+      // 'opened' (a draft is ready for the visitor to press Send — never a send)
+      // or 'blocked' (the browser refused the tab). Both leave the guard armed;
+      // only `returnToForm` re-arms it, exactly as before this delegation.
+      setStatus(result.status)
     } catch {
+      // `dispatchEnquiry` reports failure through `result.status` rather than by
+      // throwing, but a thrown value must still land in the honest 'error' state
+      // rather than escaping to the shell's ErrorBoundary.
       submittingRef.current = false
       setStatus('error')
     }
