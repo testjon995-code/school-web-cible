@@ -30,15 +30,28 @@ const absoluteUrl = (path) => {
  * route passes none — so it self-canonicalises to NOTHING rather than wrongly
  * pointing every unknown URL at the homepage (the previously reported bug).
  *
+ * Indexability (`noindex`): this optional prop is the SINGLE noindex mechanism
+ * for the whole codebase — without it, every route needing one would hand-roll
+ * its own sibling `<Helmet>` block (the one the 404 carries today, plus one each
+ * for `/compare`, `/search` and `/dashboard`). Its callers are exactly the
+ * routes whose content is query-determined or device-local and therefore not
+ * crawler-meaningful: `/compare`, `/search`, `/dashboard` and the catch-all 404.
+ * Each of those passes `noindex` and deliberately passes NO `canonical`, so it
+ * emits `noindex, follow` and neither a canonical link nor an `og:url`. It
+ * defaults to `false` and the tag is emitted ONLY when truthy, which keeps the
+ * head byte-identical for every indexable page and matters because
+ * `react-helmet-async` v3 on React 19 appends rather than replaces.
+ *
  * @param {object} props
  * @param {string} [props.title] Page title; combined as `"<title> | <brand>"`.
  * @param {string} [props.description] Meta/OG/Twitter description; falls back to `siteConfig.description`.
  * @param {string} [props.canonical] Canonical path/URL; when omitted NO canonical/og:url is emitted.
  * @param {string} [props.image] OG/Twitter image; falls back to `siteConfig.ogImage`.
  * @param {'website'|'article'} [props.type='website'] Open Graph `og:type`.
+ * @param {boolean} [props.noindex=false] When true, emits `<meta name="robots" content="noindex, follow">`; omitted entirely when false.
  * @returns {import('react').ReactElement} A Helmet fragment of head tags.
  */
-function Seo({ title, description, canonical, image, type = 'website' }) {
+function Seo({ title, description, canonical, image, type = 'website', noindex = false }) {
   const pageTitle = title ? `${title} | ${siteConfig.name}` : siteConfig.name
   const metaDescription = description || siteConfig.description
   // Only compute a canonical/og:url when the page explicitly supplies one.
@@ -54,6 +67,7 @@ function Seo({ title, description, canonical, image, type = 'website' }) {
       <title>{pageTitle}</title>
       <meta name="description" content={metaDescription} />
       {canonicalUrl ? <link rel="canonical" href={canonicalUrl} /> : null}
+      {noindex ? <meta name="robots" content="noindex, follow" /> : null}
 
       <meta property="og:type" content={type} />
       <meta property="og:site_name" content={siteConfig.name} />

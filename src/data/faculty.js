@@ -20,6 +20,23 @@
  * photo, drop it at the documented `/faculty/<slug>.jpg` path (served from
  * `public/`) and replace the corresponding `image: null` with that string.
  *
+ * SLUG CONTRACT (AAP §0.6.4 / §0.7.3):
+ * Every record carries an explicit, stable, kebab-case `slug`. Each value is
+ * TRANSCRIBED from that record's documented `/faculty/<slug>.jpg` image path
+ * above — it is deliberately NOT derived from `name` at runtime. A derived
+ * name-normalisation was considered and rejected for two reasons: correcting a
+ * name would silently change that person's anchor, and it would need a
+ * collision rule for two members sharing a surname. An explicit field needs
+ * neither, and there is therefore NO slugify helper in this module.
+ * The slug is the URL-fragment target a faculty search result addresses:
+ * `src/lib/search.js` emits `/faculty#faculty-<slug>` (faculty members have no
+ * detail route of their own), and `src/pages/Faculty.jsx` resolves that
+ * fragment to the matching card, scrolls it into view and moves focus to it.
+ * Treat each value as a PUBLIC CONTRACT — once authored it is a URL other
+ * modules point at, so it is never renamed — and keep it IDENTICAL to the
+ * `/faculty/<slug>.jpg` path in the same record's TODO comment, otherwise the
+ * photo a content owner drops in will never be found.
+ *
  * SOCIALS CONTRACT (optional):
  * `socials` is an array — empty by default because no verified social profiles
  * exist yet (inventing URLs would violate the no-fabrication rule). When real
@@ -36,6 +53,13 @@
  * @property {React.ComponentType} icon  A react-icons component reference.
  *
  * @typedef {Object} FacultyMember
+ * @property {string} [slug]            PUBLIC CONTRACT — explicit kebab-case identifier,
+ *                                      transcribed from the `/faculty/<slug>.jpg` image path
+ *                                      (never derived from `name`) and never renamed. It is the
+ *                                      `/faculty#faculty-<slug>` fragment target used by the
+ *                                      search index. Optional: a record without a `slug` is
+ *                                      indexed to `/faculty` with no fragment, so absence
+ *                                      degrades gracefully and is not an error.
  * @property {string} name              Full name.
  * @property {string} role              Subject / title, aligned to the courses.
  * @property {string} bio               One or two encouraging, professional sentences.
@@ -46,6 +70,7 @@
 /** @type {FacultyMember[]} */
 export const faculty = [
   {
+    slug: 'rajeev-ranjan-jha',
     name: 'Rajeev Ranjan Jha',
     role: 'Founder & Director',
     bio: 'Rajeev founded CIBLE on a simple belief: every learner in Madhubani deserves world-class English and career guidance close to home. He leads the academy\u2019s teaching vision and mentors students toward confident communication and clear goals.',
@@ -54,6 +79,7 @@ export const faculty = [
     socials: [],
   },
   {
+    slug: 'anjali-mishra',
     name: 'Anjali Mishra',
     role: 'Spoken English & Personality Development Trainer',
     bio: 'Anjali helps hesitant speakers find their voice through daily conversation practice, structured feedback and plenty of encouragement. Her sessions blend spoken fluency with personality development so students carry that confidence well beyond the classroom.',
@@ -62,6 +88,7 @@ export const faculty = [
     socials: [],
   },
   {
+    slug: 'saurabh-kumar-choudhary',
     name: 'Saurabh Kumar Choudhary',
     role: 'English Communication & Public Speaking Trainer',
     bio: 'Saurabh coaches students in professional communication, public speaking and interview readiness using real-world scenarios and mock practice. He focuses on clarity, body language and the calm confidence that presentations and interviews demand.',
@@ -70,6 +97,7 @@ export const faculty = [
     socials: [],
   },
   {
+    slug: 'nidhi-thakur',
     name: 'Nidhi Thakur',
     role: 'PCM Faculty (Physics & Mathematics)',
     bio: 'Nidhi makes Physics and Mathematics approachable by breaking tough concepts into simple, logical steps and worked examples. She guides PCM aspirants with regular practice, patient doubt-clearing and steady exam preparation.',
@@ -78,6 +106,7 @@ export const faculty = [
     socials: [],
   },
   {
+    slug: 'ravi-shankar-mandal',
     name: 'Ravi Shankar Mandal',
     role: 'PCB Faculty (Biology & Chemistry)',
     bio: 'Ravi brings Biology and Chemistry to life with clear diagrams, everyday examples and memory techniques that make revision easier. He supports PCB students with well-structured notes and consistent test practice for their medical-track goals.',
@@ -86,6 +115,7 @@ export const faculty = [
     socials: [],
   },
   {
+    slug: 'pooja-karn',
     name: 'Pooja Karn',
     role: 'Computer & Digital Literacy Instructor',
     bio: 'Pooja introduces students to computer fundamentals and everyday digital skills, from typing and office tools to safe, confident internet use. Her hands-on, patient approach helps first-time learners quickly become comfortable with technology.',

@@ -29,7 +29,7 @@ import { cn } from '../../lib/cn.js'
  * @param {string} [props.eyebrow] - Optional uppercase kicker label above the title.
  * @param {import('react').ReactNode} props.title - Main heading content (required in practice).
  * @param {import('react').ReactNode} [props.subtitle] - Optional supporting paragraph.
- * @param {'h2' | 'h3'} [props.as='h2'] - Heading element to render, to keep the outline logical.
+ * @param {'h1' | 'h2' | 'h3'} [props.as='h2'] - Heading element to render, to keep the outline logical.
  * @param {'center' | 'left'} [props.align='center'] - Text alignment of the block.
  * @param {string} [props.className] - Extra classes merged after the defaults.
  * @returns {import('react').ReactElement} The rendered heading block.

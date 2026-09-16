@@ -1,6 +1,18 @@
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import { cn } from '../../lib/cn.js'
 import { useScrollReveal, prefersReducedMotion, fadeUp, staggerContainer } from '../../hooks/useScrollReveal.js'
+
+// Link treatment for a stage title that carries an `href` — brand tokens only
+// (`text-primary-600` is 4.6:1 on white = AA for normal text; `primary-700` is
+// the established hover step). The underline is ALWAYS visible rather than
+// hover-only, so the affordance never rests on color alone, and `font-medium` is
+// deliberately OMITTED: the link inherits the `<h3>`'s `font-semibold`, keeping
+// linked and unlinked stage titles identical in weight. No focus ring is
+// declared here — the global `:focus-visible` rule in src/index.css already
+// gives every focusable element a 2px primary-600 outline at 2px offset.
+const STAGE_LINK_CLASSES =
+  'text-primary-600 underline underline-offset-2 transition-colors duration-200 hover:text-primary-700'
 
 /**
  * Timeline — CIBLE School of Language.
@@ -16,6 +28,27 @@ import { useScrollReveal, prefersReducedMotion, fadeUp, staggerContainer } from 
  * reused everywhere ordered sequences appear. It is NOT a card list — timeline
  * entries are lightweight text rows on a rail, so it deliberately does not use
  * the `ui/Card` surface.
+ *
+ * Linkable stages (the OPTIONAL per-item `href`):
+ * - An item may carry `href`, an in-app route. When present, that step's title
+ *   renders as a react-router `<Link>` INSIDE the same `<h3>`; when absent, the
+ *   title renders exactly as it always has — bare text in that same `<h3>`.
+ *   Only the title CONTENT is conditional: the `<motion.li>`, its `key`, the
+ *   marker `<span>` and the description `<p>` are identical either way, so an
+ *   item without `href` produces byte-identical output. That is precisely why
+ *   the two pre-existing timelines — the three milestones on `src/pages/About.jsx`
+ *   and the four-step process on `src/pages/Admission.jsx`, neither of which
+ *   passes `href` — are unaffected by this capability.
+ * - The motivating consumer is `learningJourney` in `src/data/learningPaths.js`,
+ *   whose `{ id, label, body, href? }` records map onto `title`/`description`/
+ *   `href`. It is rendered through THIS component by both
+ *   `src/components/common/CourseDetailView.jsx` and `src/pages/Dashboard.jsx`,
+ *   so the six stages (Discover → Check Eligibility → Enquire → Enroll → Learn
+ *   → Complete) have ONE definition rather than a copy per surface, and each
+ *   stage can link to the route that acts on it where such a route exists.
+ * - A `<Link>` is used rather than a bare `<a>` because these are client-side
+ *   routes in a single-page application, and rather than `Button` because a
+ *   stage title is a text link inside a heading, not a 44px action target.
  *
  * Animation (respecting reduced-motion):
  * - The reveal is driven by a SINGLE top-level `useScrollReveal()` call (the
@@ -45,6 +78,12 @@ import { useScrollReveal, prefersReducedMotion, fadeUp, staggerContainer } from 
  *   absolutely centered on the rail (`-left-8 -translate-x-1/2`).
  * - Titles use `text-foreground`; descriptions use the lower-emphasis
  *   `text-muted` — both AA-contrast on white per the design system.
+ * - A stage title carrying an `href` uses the project's established text-link
+ *   treatment — `text-primary-600` (AA at 4.6:1 on white) with an always-visible
+ *   `underline underline-offset-2` and a `transition-colors duration-200` hover
+ *   to `primary-700` — composed through the same `cn(...)` path. It adds NO new
+ *   token, NO named `@utility` and no arbitrary value, so src/index.css is
+ *   untouched by this component.
  * - `className` is merged LAST via `cn(...)`, so caller utilities win.
  *
  * Accessibility (WCAG AA):
@@ -56,13 +95,19 @@ import { useScrollReveal, prefersReducedMotion, fadeUp, staggerContainer } from 
  *   host page, keeping the document outline logical.
  * - Any step icon is a decorative glyph inside the already-hidden marker; the
  *   textual title/description carry the meaning (color is never the sole signal).
+ * - A stage title's `href` renders a REAL `<Link>` nested in the `<h3>`, so it is
+ *   keyboard reachable in document order and announced as both a heading and a
+ *   link. Its focus ring is inherited from the global `:focus-visible` rule, and
+ *   its underline means the link is not signalled by color alone.
  *
  * @param {object} props
- * @param {Array<{ title: string, description?: import('react').ReactNode, icon?: import('react').ElementType }>} [props.items=[]]
+ * @param {Array<{ title: string, description?: import('react').ReactNode, icon?: import('react').ElementType, href?: string }>} [props.items=[]]
  *   Ordered steps. `title` labels the step (and is used as the React key);
  *   `description` is the supporting copy; `icon` is an OPTIONAL react-icons
  *   component reference rendered inside the marker (when omitted, the 1-based
- *   step number is shown instead).
+ *   step number is shown instead); `href` is an OPTIONAL in-app route that turns
+ *   the title into a `<Link>` inside the same `<h3>` — omit it and the step
+ *   renders exactly as it did before this prop existed.
  * @param {string} [props.className] Extra classes merged LAST onto the `<ol>`
  *   (e.g. width/max-width or spacing overrides).
  * @param {object} [props] Any other props (`id`, `aria-*`, data attributes, …)
@@ -97,6 +142,19 @@ export default function Timeline({ items = [], className, ...props }) {
         // react-icons component reference supplied by the item data (optional).
         // Capitalized so JSX renders it as a component; falls back to the number.
         const Icon = item.icon
+        // Stage title content. With an `href` the title becomes a react-router
+        // <Link> INSIDE the unchanged <h3> (heading semantics preserved: the
+        // heading is not moved into the link and the link is not a wrapper).
+        // WITHOUT an `href` this is the exact same plain-text node the component
+        // has always rendered, so items that omit it are byte-identical — which
+        // is why the existing About and Admission timelines are unaffected.
+        const titleContent = item.href ? (
+          <Link to={item.href} className={cn(STAGE_LINK_CLASSES)}>
+            {item.title}
+          </Link>
+        ) : (
+          item.title
+        )
         return (
           <motion.li key={item.title} variants={fadeUp} className="relative">
             <span
@@ -105,7 +163,7 @@ export default function Timeline({ items = [], className, ...props }) {
             >
               {Icon ? <Icon className="h-4 w-4" /> : index + 1}
             </span>
-            <h3 className="text-base font-semibold text-foreground">{item.title}</h3>
+            <h3 className="text-base font-semibold text-foreground">{titleContent}</h3>
             <p className="mt-1 text-sm leading-relaxed text-muted">{item.description}</p>
           </motion.li>
         )

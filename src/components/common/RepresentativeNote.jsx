@@ -23,11 +23,18 @@ import siteConfig from '../../data/siteConfig.js'
  * markup/styling lives here once rather than being copy-pasted per page. The
  * page passes the page-specific wording as `children`.
  *
- * Single source of truth / auto-retiring: rendering is gated by the single
- * `siteConfig.representativeContent` flag. When the client provides verified,
- * consent-approved content and clears that flag, EVERY instance of this note
- * (and the Footer band) disappears automatically with no page edits — the demo
- * disclosure can never be left stranded in production.
+ * Single source of truth / auto-retiring: under the default `gate="content"`,
+ * rendering is gated by the single `siteConfig.representativeContent` flag. When
+ * the client provides verified, consent-approved content and clears that flag,
+ * EVERY content disclosure rendered through this component (and the Footer band)
+ * disappears automatically with no page edits — the demo disclosure can never be
+ * left stranded in production. That guarantee is unchanged and still covers all
+ * of the content call sites, none of which passes `gate`.
+ *
+ * The single deliberate, documented exception is `gate="always"` (AAP §0.6.5),
+ * which renders regardless of the flag because it discloses something about the
+ * APPLICATION'S ARCHITECTURE rather than about unconfirmed content. It is scoped
+ * to one caller and explained in full on the `gate` parameter below.
  *
  * Accessibility (WCAG AA): renders a `role="note"` region (ancillary/parenthetic
  * content — deliberately NOT a landmark, so multiple notes never pollute the
@@ -47,13 +54,41 @@ import siteConfig from '../../data/siteConfig.js'
  * @param {string} [props.className] Extra classes merged LAST via {@link cn}
  *   (clsx + tailwind-merge), so a caller can adjust spacing/width for its layout.
  * @param {string} [props.id] Optional `id` forwarded to the note element.
+ * @param {'content'|'always'} [props.gate='content'] Which condition governs
+ *   whether this note renders at all.
+ *
+ *   • `'content'` (the default) is the fail-safe, flag-gated behaviour that every
+ *     content disclosure on the site uses: the note renders only while
+ *     `siteConfig.representativeContent` is set, and retires itself the moment
+ *     the client clears that flag. This is what keeps the auto-retiring
+ *     guarantee above true, which is why ANY value other than `'always'` —
+ *     including an unrecognised one — is treated as `'content'`: the fail-safe
+ *     direction is suppression, never accidental rendering.
+ *
+ *   • `'always'` renders unconditionally, and `src/pages/Dashboard.jsx` is the
+ *     ONLY intended caller. Its notice is not representative content awaiting
+ *     confirmation; it is an architectural fact — there is no account, no
+ *     authentication and no server behind that surface, and confirming the
+ *     institute's course content does not change that.
+ *
+ *   DO NOT "fix" the dashboard back onto the content gate. Doing so would
+ *   silently delete the only statement telling a visitor that the surface does
+ *   not track a real enrolment, at precisely the moment the site starts looking
+ *   finished. Hand-rolling a second `role="note"` block on that page, or adding
+ *   a second notice component, was considered and rejected as duplication — this
+ *   one additive prop is why the codebase still has exactly ONE disclosure
+ *   component.
  * @returns {import('react').ReactElement|null} The disclosure note, or `null`
- *   when representative-content mode is off (verified content is live).
+ *   when the `'content'` gate applies and representative-content mode is off
+ *   (verified content is live).
  */
-function RepresentativeNote({ children, className, id }) {
+function RepresentativeNote({ children, className, id, gate = 'content' }) {
   // Fail-safe: never render the demo disclosure once the site is running on
-  // verified, client-approved content (single source of truth).
-  if (!siteConfig.representativeContent) return null
+  // verified, client-approved content (single source of truth). `gate="always"`
+  // is the one documented exception — an architectural disclosure that must
+  // outlive content confirmation (AAP §0.6.5) — so every other value, including
+  // an unrecognised one, keeps the suppressing content behaviour.
+  if (gate !== 'always' && !siteConfig.representativeContent) return null
 
   return (
     <div
