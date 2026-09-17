@@ -33,10 +33,18 @@ import { goals } from '../../data/goals.js'
  *  - The router's search-parameter hook is NOT imported or called in this file.
  *    There is exactly one call site for the catalogue's URL state, and it is
  *    `useCourseFilters`.
- *  - There is no `useState` mirror of a filter value and no debounce into local
- *    state. A locally remembered filter value is how a shared URL and a back
- *    navigation start disagreeing with the screen, so the moment this file
- *    wants to remember a selection, the design has gone wrong.
+ *  - No filter SELECTION is remembered locally, and nothing is debounced. A
+ *    locally remembered selection is how a shared URL and a back navigation
+ *    start disagreeing with the screen, so the moment this file wants to
+ *    remember a chip, a level or a sort, the design has gone wrong.
+ *  - The single exception is the free-text box, which keeps a draft of the
+ *    characters typed into it — NOT a remembered filter. It is required, not a
+ *    convenience: this page's URL state is deferred behind `src/App.jsx`'s
+ *    `startTransition`, so rendering that input straight from `values.q` reset
+ *    it to a stale string mid-word and silently dropped keystrokes. The URL
+ *    stays the source of truth — every keystroke still writes to it, and an
+ *    externally arriving value always wins — and the mechanism is documented in
+ *    full at the mirror itself in `FilterControls`.
  *  - The ONE piece of state this component legitimately owns is the open/closed
  *    state of the mobile filter sheet, which is presentation rather than filter
  *    state, plus the `matchMedia` guard that closes the sheet if the viewport
@@ -461,10 +469,11 @@ function deriveGoalOptions(list, selected) {
  * desktop panel and the mobile sheet. Module-local and not exported, so the
  * file's only export stays the `CourseFilters` component.
  *
- * It is as stateless as its parent: every value it renders comes from `values`
- * and every change leaves through `onChange` in a single call. The two
- * presentations therefore cannot drift, and there is only one place to edit a
- * control.
+ * Every selection it renders comes from `values` and every change leaves
+ * through `onChange` in a single call, so the two presentations cannot drift
+ * and there is only one place to edit a control. Its one piece of state is the
+ * free-text draft explained at the top of the function — a record of what has
+ * been typed, never a remembered filter.
  *
  * @param {object[]} courses - Normalised course list (already array-checked).
  * @param {object} values - Normalised selection (already object-checked).
@@ -479,6 +488,47 @@ function deriveGoalOptions(list, selected) {
  */
 function FilterControls({ courses, values, onChange, onClearAll, activeCount, focusFallbackRef }) {
   const query = toText(values.q)
+
+  // ── THE ONE LOCAL MIRROR, AND WHY IT IS REQUIRED ──────────────────────────
+  // The free-text box shows `draft` rather than `query`. Every other control
+  // here still renders straight from `values`, and the URL remains the single
+  // source of truth for what is filtered, shared and restored — `onChange`
+  // fires on every keystroke exactly as before, so no filtering behaviour and
+  // no query-string timing changes.
+  //
+  // It exists because this page's URL state is DEFERRED, not synchronous.
+  // `src/App.jsx` renders `<Routes location={displayLocation}>` and advances
+  // `displayLocation` inside a `startTransition`, so a descendant's
+  // `useSearchParams()` — and therefore `values.q` — keeps reporting the
+  // previous location until that transition commits. With `value={query}` the
+  // input was reset to the stale string on each render while the write was in
+  // flight, discarding every character typed in the interim: typing
+  // "communication" at normal speed landed `q=on`, which then showed plausible
+  // but wrong results with nothing visibly amiss. A fast keystroke also
+  // restarts the pending transition, which is why so little survived.
+  //
+  // The reconciliation below keeps the URL authoritative: the draft is only
+  // ever preferred while this component's OWN write is still in flight, and any
+  // value arriving from elsewhere — a shared link, a back navigation, a
+  // hand-edited address, clear-all — is adopted immediately.
+  const [draft, setDraft] = useState(query)
+  const awaitingEchoRef = useRef(false)
+
+  useEffect(() => {
+    if (awaitingEchoRef.current) {
+      // Our own write, still echoing back. Settle the moment the URL reports
+      // what was typed, compared TRIMMED because `useCourseFilters` trims `q`
+      // on read — without that, a trailing space would never match and this
+      // component would stop accepting external values for the rest of the
+      // session.
+      if (query === draft.trim()) awaitingEchoRef.current = false
+      return
+    }
+    // Nothing of ours outstanding, so a difference is an external change and
+    // the URL wins.
+    if (query !== draft.trim()) setDraft(query)
+  }, [query, draft])
+
   const rawSort = toText(values.sort)
   // An unrecognised or absent sort resolves to the module's declared default, so
   // the controlled `<select>` always has a value that matches a rendered option
@@ -508,12 +558,31 @@ function FilterControls({ courses, values, onChange, onClearAll, activeCount, fo
    * the update `onClearAll` schedules until this handler returns, so this focus
    * call lands before the removal is committed and therefore survives it.
    *
+   * The search box is emptied here DIRECTLY rather than waiting for the URL to
+   * echo back, so clearing while a keystroke is still in flight cannot leave
+   * the cleared listing sitting under text that looks like it is still applied.
+   *
    * @returns {void}
    */
   const handleClearAll = () => {
+    awaitingEchoRef.current = false
+    setDraft('')
     onClearAll?.()
     const fallback = focusFallbackRef?.current
     if (fallback && typeof fallback.focus === 'function') fallback.focus()
+  }
+
+  /**
+   * Record one keystroke: show it immediately, and write it to the URL in the
+   * same single call the other controls use.
+   *
+   * @param {string} next - The input's new value.
+   * @returns {void}
+   */
+  const handleSearch = (next) => {
+    awaitingEchoRef.current = true
+    setDraft(next)
+    onChange?.('q', next)
   }
 
   /**
@@ -559,8 +628,8 @@ function FilterControls({ courses, values, onChange, onClearAll, activeCount, fo
       <Input
         type="search"
         label="Search courses"
-        value={query}
-        onChange={(event) => onChange?.('q', event.target.value)}
+        value={draft}
+        onChange={(event) => handleSearch(event.target.value)}
         hint="Matches a course title, category, summary or highlight."
       />
 

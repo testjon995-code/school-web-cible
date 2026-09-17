@@ -10,8 +10,36 @@
  * renders ONLY the page's own content — never a second `<main>` or navigation.
  *
  * Purpose (AAP §0.1.1): surface ALL 10 CIBLE courses in one browsable catalog
- * with category filtering (English / Science / Computer / Career), driving the
- * visitor toward admission via the closing call-to-action.
+ * with smart discovery — free-text search, five filter dimensions and three
+ * orderings on top of the category chips (English / Science / Computer /
+ * Career) — then answer the visitor's trust questions and drive them toward
+ * admission via the closing call-to-action.
+ *
+ * WHERE THE DISCOVERY STATE LIVES — the one thing to get right here. This page
+ * holds THE single {@link useCourseFilters} instance in the application, which
+ * makes it the single owner of the `/courses` query contract: `q`, `category`,
+ * `level`, `duration`, `goal`, `prereq` and `sort`. The hook reads and
+ * normalises those seven parameters (trim, de-duplicate, allowlist-filter, sort
+ * into declaration order) and writes them back as ONE batched
+ * `setSearchParams(next, { replace: true, preventScrollReset: true })` — so a
+ * filter session neither fills the back stack nor jumps the page to the top, and
+ * one view always resolves to exactly one canonical address.
+ *
+ * Consequences worth stating because they are easy to undo by accident:
+ *  - `CourseGrid` and `CourseFilters` hold NO filter state (beyond the grid's
+ *    uncontrolled category fallback, which this page overrides by supplying
+ *    `values`) and neither may call this hook or `useSearchParams`. A second
+ *    instance would be a second writer and the canonical-URL guarantee would
+ *    stop holding.
+ *  - Because the state is in the URL, a filtered catalogue is shareable and
+ *    survives a reload and the browser's back button for free — no store, no
+ *    context, no persistence.
+ *  - An unrecognised value (`?level=Wizard`, `?sort=nonsense`) is dropped rather
+ *    than rendered, so a hand-edited link degrades to the default view instead
+ *    of showing a filter that does not exist.
+ *  - The `<Seo canonical="/courses">` below is what makes every one of those
+ *    parameter combinations consolidate under the bare path for crawlers, with
+ *    no per-parameter work (AAP §0.5.1).
  *
  * Composition (reuse-first, zero duplication — every element is a shared
  * primitive/composite, never hand-rolled markup):
@@ -30,10 +58,23 @@
  *                        the exact `{ name, path }` shape passed to
  *                        `<StructuredData>`.
  * - `<SectionHeading as="h1">` — the page's ONE `<h1>`.
- * - `<CourseGrid showFilter>` — the shared responsive grid; it owns the
- *                        category-filter state internally (via `useState`), so
- *                        this page stays hook-free and purely presentational —
- *                        it passes the `courses` data only.
+ * - `<CourseGrid showFilter>` — the shared responsive grid and the full control
+ *                        surface. It receives the hook's DERIVED list and holds
+ *                        no filter state of its own. Note that `items` and
+ *                        `results` are not interchangeable: `items` stays the
+ *                        full catalogue (it derives the chip row, feeds
+ *                        `CourseFilters` its options, supplies the "of 10" in
+ *                        the live count, and distinguishes an empty catalogue
+ *                        from one narrowed to nothing), while `results` is what
+ *                        actually renders. The grid also owns the listing's ONE
+ *                        polite region and the only visible route into
+ *                        `/compare`, so neither is declared here — a second live
+ *                        region would announce every filter change twice.
+ * - `<TrustSection>`   — the shared trust-and-transparency block (F10), rendered
+ *                        from `src/data/trust.js` on four surfaces from one
+ *                        module. It closes the page before the CTA and is a
+ *                        SIBLING of the Containers above, because it brings its
+ *                        own `<section>` and `<Container>`.
  * - `<CTASection>`     — the reusable admission call-to-action that closes every
  *                        page (Fill Admission Form / Book Free Counseling /
  *                        WhatsApp / Call), keeping conversion actions reachable.
@@ -42,14 +83,22 @@
  * filter chips are keyboard-accessible `<button>`s with `aria-pressed` (owned by
  * `CourseGrid`), and each course card title is an `<h3>`. A visually-hidden
  * `<h2 class="sr-only">` ("All courses") is rendered immediately before the grid
- * so the outline steps h1 -> h2 -> h3 with no skipped level (QA Issue 9); the CTA
- * closes with its own `<h2>`. Sections are semantic `<section>` elements — no
- * page-level `<main>`.
+ * so the outline steps h1 -> h2 -> h3 with no skipped level (QA Issue 9); the
+ * trust block contributes its own `<h2>` over `<h3>` cards and the CTA closes
+ * with a third, so the outline stays legal end to end. Sections are semantic
+ * `<section>` elements — no page-level `<main>`.
+ *
+ * The result count and the no-match explanation are announced by `CourseGrid`'s
+ * single `role="status" aria-live="polite"` region. This page declares no live
+ * region of its own, and it does not repurpose the shell's title-mirroring
+ * announcer in `Layout.jsx`, which keeps its one existing meaning (AAP §0.5.1).
  *
  * Styling: token-only Tailwind utilities on the 8px spacing scale
  * (`py-12`/`md:py-16`, `pb-16`/`md:pb-20`, `mb-6`). No arbitrary values, no
- * hardcoded colors, and static classNames (no `cn` needed on this presentational
- * page).
+ * hardcoded colors, no new tokens or utilities (`src/index.css` needs no change
+ * for this page), and static classNames (no `cn` needed on this presentational
+ * page — every layout decision below the fold belongs to the composed
+ * components).
  */
 import Seo from '../components/seo/Seo.jsx'
 import StructuredData from '../components/seo/StructuredData.jsx'
@@ -58,9 +107,11 @@ import SectionHeading from '../components/ui/SectionHeading.jsx'
 import Breadcrumbs from '../components/ui/Breadcrumbs.jsx'
 import CourseGrid from '../components/common/CourseGrid.jsx'
 import RepresentativeNote from '../components/common/RepresentativeNote.jsx'
+import TrustSection from '../components/common/TrustSection.jsx'
 import CTASection from '../components/common/CTASection.jsx'
 import { courses } from '../data/courses.js'
 import { courseSchema } from '../lib/schema.js'
+import { useCourseFilters } from '../hooks/useCourseFilters.js'
 
 // Breadcrumb trail for this page. Module-local (never exported) so the file's
 // only public export stays the `Courses` component. The identical array is
@@ -72,6 +123,22 @@ const crumbs = [
 ]
 
 function Courses() {
+  // THE single `useCourseFilters` instance in the application, and therefore the
+  // single owner of the `/courses` query contract (`q`, `category`, `level`,
+  // `duration`, `goal`, `prereq`, `sort`). Neither `CourseGrid` nor
+  // `CourseFilters` may call this hook or the router's search-parameter hook: a
+  // second instance would be a second writer, and the canonical-URL guarantee
+  // (one view resolves to exactly one address) would stop holding. Called
+  // unconditionally at the top of the body, above every branch and with no early
+  // return anywhere before it, which is what `react/rules-of-hooks` — an ERROR
+  // in this project, not a warning — requires.
+  //
+  // `courses` is passed by reference rather than as an inline expression on
+  // purpose: the hook memoises its derived list on that identity, so a fresh
+  // array per render (`courses.filter(...)` as an argument) would recompute it
+  // every render for no benefit.
+  const { values, setValue, clearAll, results, resultCount, activeCount } = useCourseFilters(courses)
+
   return (
     <>
       <Seo
@@ -110,8 +177,38 @@ function Courses() {
           shown for demonstration. Please confirm the current curriculum, batch
           timings and fees with the institute before enrolling.
         </RepresentativeNote>
-        <CourseGrid items={courses} showFilter />
+        {/* `items` stays the FULL catalogue while `results` carries the derived
+            list — the two props answer different questions and are not
+            interchangeable. `CourseGrid` reads `items` to derive the category
+            chip row, to give `CourseFilters` its option lists, to say "Showing 3
+            of 10 courses", and to tell an EMPTY CATALOGUE ("no courses are
+            listed yet") apart from a catalogue NARROWED TO NOTHING ("no course
+            matches the current filters", which offers clear-all). It renders
+            `results` as-is and skips its own category pass, because this hook
+            already owns `category`. Passing the filtered list as `items` would
+            collapse the chip row to just the categories that survived the
+            filter — leaving no chip to switch back with — and make every count
+            read "Showing 3 courses". */}
+        <CourseGrid
+          items={courses}
+          results={results}
+          values={values}
+          onChange={setValue}
+          onClearAll={clearAll}
+          resultCount={resultCount}
+          activeCount={activeCount}
+          showFilter
+        />
       </Container>
+
+      {/* Trust block, rendered as a SIBLING of the Containers above: it owns its
+          own <section> and <Container> (the site's tinted `bg-surface` band), so
+          nesting it inside one would double the `px-4 md:px-6` gutters. Its
+          heading is an `h2` because this page's own title is the `h1`; its cards
+          are fixed at `h3`, so the outline stays h1 -> h2 -> h3. Every string it
+          shows comes from `src/data/trust.js` — `sections` is deliberately not
+          passed so the canonical set stays the default. */}
+      <TrustSection headingAs="h2" />
 
       <CTASection />
     </>
