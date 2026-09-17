@@ -17,12 +17,26 @@
  *                         the four admission steps (icons passed as component
  *                         references, never JSX).
  *   5. Admission form   — the self-contained <AdmissionForm/> in a narrow column.
- *   6. <CTASection/>    — the reusable admission call-to-action that closes
+ *   6. <TrustSection/>  — the shared trust-and-transparency band that answers
+ *                         what a visitor asks before enquiring.
+ *   7. <CTASection/>    — the reusable admission call-to-action that closes
  *                         every page.
+ *
+ * TRUST BLOCK PLACEMENT. <TrustSection> closes the page immediately before
+ * <CTASection>, so the visitor reads what the institute can actually evidence
+ * (including how admission works) right after the form and right before the
+ * final call to action. It renders at `headingAs="h2"`: this page's own title is
+ * the single <h1> and the process and form headings are already `h2`, so an
+ * `h2` here keeps the outline `h1 → h2 → h3` with no skipped level, its cards
+ * sitting at `h3` alongside the Timeline steps. Every string it shows comes
+ * from src/data/trust.js — the `sections` prop is deliberately NOT passed so the
+ * block stays on that single canonical set, and no trust copy is restated here.
+ * It is a SIBLING of this page's <Container>s, never a child of one, because it
+ * owns its own tinted band and Container (nesting would double the gutters).
  *
  * Reuse-first (zero duplication): every visual element is delegated to a
  * canonical primitive (`Container`, `SectionHeading`, `Breadcrumbs`) or
- * composite (`Timeline`, `AdmissionForm`, `CTASection`); this page owns no
+ * composite (`Timeline`, `AdmissionForm`, `TrustSection`, `CTASection`); this page owns no
  * bespoke markup styling beyond token-only layout classes on the project's 8px
  * spacing scale. Its only hook is `useSearchParams`, used to preselect the
  * admission form's "Course of Interest" from an optional `?course=<title>`
@@ -37,6 +51,7 @@ import Container from '../components/ui/Container.jsx'
 import SectionHeading from '../components/ui/SectionHeading.jsx'
 import Breadcrumbs from '../components/ui/Breadcrumbs.jsx'
 import Timeline from '../components/common/Timeline.jsx'
+import TrustSection from '../components/common/TrustSection.jsx'
 import CTASection from '../components/common/CTASection.jsx'
 import AdmissionForm from '../components/forms/AdmissionForm.jsx'
 import { courses } from '../data/courses.js'
@@ -134,6 +149,11 @@ function Admission() {
           <AdmissionForm defaultCourse={defaultCourse} />
         </div>
       </Container>
+
+      {/* Trust & transparency — rendered as a SIBLING of the sections above,
+          never inside a <Container>: TrustSection owns its own tinted band and
+          Container, and nesting the two would double the page gutters. */}
+      <TrustSection headingAs="h2" />
 
       <CTASection />
     </>

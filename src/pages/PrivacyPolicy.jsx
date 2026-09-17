@@ -29,6 +29,41 @@ const crumbs = [
 // counsel and approved by the institute before publication (AAP §0.7.2 —
 // authentic, legally-reviewed copy is client-supplied). That pending-approval
 // status is surfaced to visitors in the notice box below. Module-local.
+//
+// Saved-courses disclosure (AAP §0.5.3): the site now keeps ONE persistent
+// device-local entry — the visitor's saved-course list, held in the browser's
+// own local storage under the single namespaced key `cible:saved-courses:v1`
+// (see `src/lib/storage.js`, the one module permitted to touch that area; the
+// separate `cible:chunk-reload` flag lives in session storage and belongs to
+// `src/lib/routeLoading.js`, so the copy below claims a single key for the
+// saved list and never that it is the site's only browser storage). Two
+// sections carry that fact so the published copy stays true now that the key
+// exists: "No Tracking or Analytics by CIBLE" discloses what is stored and
+// that it is never transmitted, and "Data Retention and Your Choices" gives the
+// instruction for removing it. The existing no-analytics commitment is NOT
+// weakened: it is a statement about *collection* — analytics, advertising,
+// tracking pixels, identifying cookies, visitor profiles, server-side logs —
+// and a functional value written on the visitor's own device and sent nowhere
+// is not collection. No consent banner is introduced for the same reason.
+
+/**
+ * One policy section, rendered as an `<h2>` plus its prose by the single
+ * `sections.map` below. Records are plain content; the page declares no other
+ * copy structure.
+ *
+ * @typedef {Object} PolicySection
+ * @property {string} heading - Section title, rendered as the section `<h2>`.
+ * @property {string} body - The section's prose, rendered as one `<p>`.
+ * @property {string} [additionalBody] - Optional SECOND paragraph, rendered by
+ *   the same map directly beneath `body` with the same paragraph styling. It
+ *   exists only because the storage disclosure reads better as its own
+ *   paragraph than appended to an unrelated sentence; a record that omits it
+ *   renders exactly as it did before the field existed, so seven of the nine
+ *   sections are untouched. Adding a second render loop, a wrapper component or
+ *   a differently-styled callout instead is explicitly out of scope.
+ */
+
+/** @type {ReadonlyArray<PolicySection>} */
 const sections = [
   {
     heading: 'How This Website Works',
@@ -49,6 +84,7 @@ const sections = [
   {
     heading: 'No Tracking or Analytics by CIBLE',
     body: 'CIBLE itself does not use analytics, advertising, tracking pixels, or cookies that identify you; we build no visitor profiles and keep no server-side log of your browsing. Aside from the technical request data sent to Google when the fonts and the Contact-page map load \u2014 described in the section above \u2014 no browsing data about you is collected by this website.',
+    additionalBody: 'Saving a course for later works entirely on your own device. When you save a course, your list is written to your browser\u2019s own local storage under a single namespaced key (cible:saved-courses:v1), and that entry records nothing about you: it holds the short identifiers of the courses you chose, together with a version marker the site uses to read the list back, and nothing else — no name, no phone number, no email address, no message text and no timestamp. It sets no cookie, it identifies no person, and it is never transmitted anywhere: not to CIBLE, not to any third party, and there is no server for it to be sent to. It exists only so that your saved list is still there when you reload the page or come back later, and you stay in control of it — clear the whole list on the My Learning page, unsave a single course with the same control you used to save it, or clear this site\u2019s data in your browser.',
   },
   {
     heading: 'How We Use Your Information',
@@ -57,6 +93,7 @@ const sections = [
   {
     heading: 'Data Retention and Your Choices',
     body: 'Because we do not operate a server-side database, any message you send lives in WhatsApp, in your own email, and in the institute\u2019s inbox. To review, correct or remove information you have sent, contact us using the details below, or use the controls provided by WhatsApp/Meta or your email provider. You remain in control of what you choose to send.',
+    additionalBody: 'Your saved-course list is kept only in the browser you saved it in, so removing it is entirely in your hands: clear the whole list on the My Learning page, unsave a single course with the same control you used to save it, or clear this site\u2019s data in your browser, which removes that stored entry along with anything else this site has kept on your device. Because the list never reaches us, there is nothing for CIBLE to delete on your behalf, and nothing carries over to another browser or another device.',
   },
   {
     heading: 'Children\u2019s Privacy',
@@ -84,6 +121,21 @@ const sections = [
  * addresses minors. It is lazy-loaded by the route table in `src/App.jsx`
  * (`<Route path="privacy-policy" element={<PrivacyPolicy />} />`) and rendered
  * inside the shared `<Layout>`, so this component renders ONLY page content.
+ *
+ * Device-local storage disclosure (AAP §0.5.3): the page also discloses the
+ * one persistent entry this website keeps on the visitor's own device — the
+ * saved-course list, written to the browser's own local storage under one
+ * namespaced key, `cible:saved-courses:v1`, through the sole storage boundary
+ * in `src/lib/storage.js`. Two sections carry it: "No Tracking or Analytics by
+ * CIBLE" states what the entry holds (course identifiers only — no name, no
+ * contact detail, no free text, no timestamp), that it sets no cookie,
+ * identifies no person and is never transmitted anywhere, and that it can be
+ * removed; "Data Retention and Your Choices" gives the removal instruction.
+ * The pre-existing no-analytics commitment is deliberately left intact rather
+ * than qualified, because it is a claim about *collection* and a value stored
+ * on the visitor's own device and sent nowhere is not collected. For the same
+ * reason NO consent banner is introduced: the storage is functional rather
+ * than analytical, sets no cookie and carries no identifier of any person.
  *
  * Pending legal approval: the copy is representative pre-launch text that has
  * NOT yet been reviewed by legal counsel or approved by the institute; that
@@ -146,6 +198,14 @@ function PrivacyPolicy() {
               {section.heading}
             </h2>
             <p className="text-muted leading-relaxed">{section.body}</p>
+            {/* Optional second paragraph, rendered by this SAME loop with the
+                same prose styling — only the `mt-4` stacking token is added,
+                because Tailwind's preflight zeroes paragraph margins and two
+                paragraphs would otherwise butt together. A record without
+                `additionalBody` renders exactly as before. */}
+            {section.additionalBody ? (
+              <p className="mt-4 text-muted leading-relaxed">{section.additionalBody}</p>
+            ) : null}
           </div>
         ))}
         <h2 className="mt-8 mb-3 text-xl font-semibold text-foreground md:text-2xl">

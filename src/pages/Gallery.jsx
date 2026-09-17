@@ -1,16 +1,14 @@
+import { FaRegImages } from 'react-icons/fa'
 import Seo from '../components/seo/Seo.jsx'
 import StructuredData from '../components/seo/StructuredData.jsx'
 import Container from '../components/ui/Container.jsx'
 import SectionHeading from '../components/ui/SectionHeading.jsx'
 import Breadcrumbs from '../components/ui/Breadcrumbs.jsx'
+import Button from '../components/ui/Button.jsx'
+import EmptyState from '../components/ui/EmptyState.jsx'
 import GalleryComponent from '../components/common/Gallery.jsx'
 import CTASection from '../components/common/CTASection.jsx'
-import heroImg from '../assets/hero.svg'
-import courseEnglish from '../assets/course-english.svg'
-import coursePersonality from '../assets/course-personality.svg'
-import courseScience from '../assets/course-science.svg'
-import courseComputer from '../assets/course-computer.svg'
-import courseCareer from '../assets/course-career.svg'
+import { galleryImages } from '../data/gallery.js'
 
 /**
  * Gallery — the `/gallery` route of the CIBLE School of Language website.
@@ -27,10 +25,29 @@ import courseCareer from '../assets/course-career.svg'
  * `Gallery` and the `export default Gallery` reads naturally without an
  * identifier clash.
  *
- * Asset-import exception: this is the one page permitted to import
- * `../assets/*.svg` directly. Vite resolves each import to a URL string usable
- * as an `<img src>`, and because there is no dedicated gallery data module the
- * imagery is supplied inline here rather than from `src/data`.
+ * Content source: the imagery comes from `src/data/gallery.js`, which owns both
+ * the `{ src, alt, caption }` records and the `src/assets` SVG imports that Vite
+ * resolves into fingerprinted URLs usable as an `<img src>`. Those records
+ * were declared inline in this file until now — the recorded limitation that
+ * gallery content lived in a page rather than a data module (AAP §0.3.4, §0.9.1
+ * Group 8) — so this page declares no content structure of its own and imports
+ * no asset directly; the asset-import exception moved to that data module with
+ * the records. Editorial rules for the records, including why every `alt` opens
+ * "Illustration representing …" rather than asserting a real photograph, are
+ * documented beside them there and are deliberately not restated here.
+ *
+ * Empty state: the imported collection is treated as untrusted input, so when
+ * it is missing, not an array or empty, the labelled region below renders the
+ * shared {@link EmptyState} in place of the carousel (AAP §0.11.3) — an
+ * explanation of what happened plus a next step, never a blank or collapsed
+ * container. Both branches keep the region and its visually hidden heading, so
+ * the section retains its accessible name either way.
+ *
+ * No fragment handling here, deliberately: `Faculty`, `Blog` and `Faq` each own
+ * a hash-reveal effect because their individual items are addressable and are
+ * indexed as such by `src/lib/search.js`. Gallery slides are neither, so this
+ * page adds no `location.hash` effect and must not gain one for symmetry with
+ * those pages (AAP §0.9.2).
  *
  * SEO: emits a unique `<Seo>` head (title/description/canonical/Open Graph/
  * Twitter) plus a BreadcrumbList JSON-LD block via {@link StructuredData}. The
@@ -53,23 +70,15 @@ const crumbs = [
   { name: 'Gallery', path: '/gallery' },
 ]
 
-// Representative gallery imagery. The current assets are BRAND SVG ILLUSTRATIONS
-// (not photographs), so the `alt` text describes each as an "illustration
-// representing …" rather than asserting a real photograph — this keeps the page
-// truthful (the site must not present illustrations as genuine institute
-// photos). Authentic institute photographs are client-supplied and swapped in
-// before launch (AAP §0.7.2); when they are, revert the `alt` copy to describe
-// the real scene. The shape MUST match GalleryComponent's `images` prop
-// ({ src, alt, caption }); every entry provides a meaningful `alt` for
-// screen-reader users (WCAG AA), and the caption is a concise subject label.
-const galleryImages = [
-  { src: heroImg, alt: 'Illustration representing the CIBLE School of Language campus', caption: 'Our Campus' },
-  { src: courseEnglish, alt: 'Illustration representing a spoken English class', caption: 'Spoken English' },
-  { src: coursePersonality, alt: 'Illustration representing a personality development workshop', caption: 'Personality Development' },
-  { src: courseScience, alt: 'Illustration representing a science coaching class', caption: 'Science Coaching' },
-  { src: courseComputer, alt: 'Illustration representing computer lab training', caption: 'Computer Lab' },
-  { src: courseCareer, alt: 'Illustration representing a career guidance session', caption: 'Career Guidance' },
-]
+// Whether there is anything to render in the carousel. Derived once at module
+// scope because it depends only on a static import, and written as an explicit
+// `Array.isArray` check rather than a bare truthiness test: the records arrive
+// from another module, so a malformed edit there (an object, a stray `null`, a
+// renamed export resolving to `undefined`) must fall through to the empty state
+// instead of reaching `images.length` inside the carousel. This mirrors the
+// defensive posture the shared FAQ component already applies to its own
+// caller-supplied `items`.
+const hasImages = Array.isArray(galleryImages) && galleryImages.length > 0
 
 function Gallery() {
   return (
@@ -94,10 +103,33 @@ function Gallery() {
 
       {/* Labelled region (m06): the gallery carousel has no heading of its own,
           so a visually-hidden <h2> referenced via `aria-labelledby` gives the
-          section an accessible name without altering the visual design. */}
+          section an accessible name without altering the visual design. The
+          region and its heading wrap BOTH branches, so the section keeps that
+          accessible name when the empty state is showing instead. */}
       <Container as="section" aria-labelledby="gallery-images-heading" className="pb-16 md:pb-20">
         <h2 id="gallery-images-heading" className="sr-only">Gallery images</h2>
-        <GalleryComponent images={galleryImages} />
+        {hasImages ? (
+          <GalleryComponent images={galleryImages} />
+        ) : (
+          /* Unavailable-content state, not a failure: nothing went wrong, there
+             is simply nothing to show, so the tone is `neutral` and no `role` is
+             set — this branch is decided by build-time content rather than by a
+             live filter, unlike the shared FAQ component's `role="status"`
+             no-results branch. `headingAs="h3"` seats the title one level below
+             the region's hidden <h2>, keeping the outline h1 → h2 → h3 intact,
+             and the glyph is decorative (EmptyState hides it from assistive
+             technology). The copy answers WHAT HAPPENED and WHAT NEXT: the
+             contact route is where the address, map and phone number live, so a
+             visitor who wanted to see the place can still do so in person. */
+          <EmptyState
+            tone="neutral"
+            headingAs="h3"
+            icon={FaRegImages}
+            title="No gallery images yet"
+            description="There are no images to show here at the moment. You are welcome to see the institute in person — our address, map and phone number are on the contact page — or get in touch with any question about the classes."
+            action={<Button to="/contact">Visit or contact us</Button>}
+          />
+        )}
       </Container>
 
       <CTASection />
