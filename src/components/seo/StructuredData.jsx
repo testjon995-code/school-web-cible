@@ -4,6 +4,8 @@ import {
   localBusinessSchema,
   courseSchema,
   breadcrumbSchema,
+  eventSchema,
+  faqPageSchema,
 } from '../../lib/schema.js'
 
 /**
@@ -72,6 +74,17 @@ function serializeJsonLd(block) {
  * breakout (M08). Any block that fails validation or serialization is silently
  * dropped; when nothing serializable remains the component renders `null`.
  *
+ * Two invariants govern the builders, and both are deliberate rather than
+ * oversights. First, a builder may return `null` — `courseSchema`,
+ * `eventSchema` and `faqPageSchema` each do so when a record cannot support a
+ * complete, truthful block — and the existing `.filter(Boolean)` below is what
+ * drops it, so no per-prop null check or extra validation branch belongs here.
+ * Second, the per-record verification gate (`event.scheduleConfirmed`, and
+ * every question's `answerConfirmed`) is evaluated by the CALLING PAGE, never
+ * by this component and never inside the builders, which stay pure. Keeping
+ * this emitter content-agnostic is precisely what lets a record become
+ * eligible for rich markup by flipping one boolean, with no code change here.
+ *
  * @param {object} props
  * @param {object|object[]} [props.schema] Extra schema object(s) to include.
  * @param {object|object[]} [props.data] Alias for `schema` (whichever is set).
@@ -80,6 +93,9 @@ function serializeJsonLd(block) {
  * @param {object} [props.course] A course object → Course schema.
  * @param {Array<{name: string, path?: string, url?: string}>} [props.breadcrumbs]
  *   Breadcrumb trail → BreadcrumbList schema.
+ * @param {object} [props.event] An `events[]` record → Event schema.
+ * @param {Array<{question: string, answer: string, [key: string]: unknown}>} [props.faq]
+ *   Question/answer records → FAQPage schema.
  * @returns {import('react').ReactElement|null} Helmet-injected JSON-LD scripts, or null.
  */
 function StructuredData({
@@ -89,6 +105,8 @@ function StructuredData({
   localBusiness = false,
   course,
   breadcrumbs,
+  event,
+  faq,
 }) {
   const blocks = []
 
@@ -96,6 +114,8 @@ function StructuredData({
   if (localBusiness) blocks.push(localBusinessSchema())
   if (course) blocks.push(courseSchema(course))
   if (breadcrumbs) blocks.push(breadcrumbSchema(breadcrumbs))
+  if (event) blocks.push(eventSchema(event))
+  if (faq) blocks.push(faqPageSchema(faq))
 
   const provided = schema || data
   if (Array.isArray(provided)) blocks.push(...provided)
