@@ -32,9 +32,11 @@ and installed; patch/minor levels may float within each caret range.
 
 - **React 19 + Vite 8** — a modern ESM React SPA with fast HMR in development and an
   optimized production build. Vite 8 uses the Rolldown bundler under the hood.
-- **React Router v7 (`react-router-dom`)** — client-side routing across 17 content
-  pages plus a catch-all 404 *Not Found* route, configured declaratively with
-  `<BrowserRouter>` (no server/data-router or React Server Components mode; see
+- **React Router v7 (`react-router-dom`)** — client-side routing across 23 route
+  entries (21 concrete paths plus two `:slug` patterns that expand to one URL per
+  course and per event record) and a catch-all 404 *Not Found* route, configured
+  declaratively with `<BrowserRouter>` (no server/data-router or React Server
+  Components mode; see [Pages](#pages) for the breakdown and
   [Security](#security)).
 - **Tailwind CSS v4** — CSS-first design system wired through the
   `@tailwindcss/vite` plugin (no `tailwind.config.js`; tokens are defined in an
@@ -103,20 +105,33 @@ tokens live in `src/index.css`, and a single canonical set of primitives is comp
 across every page.
 
 ```text
-public/            robots.txt, sitemap.xml, site.webmanifest, og-image.jpg, favicon.svg
+public/            robots.txt, sitemap.xml, site.webmanifest, og-image.jpg, favicon.svg, logo.svg
 src/
   assets/          logo, hero & course/faculty imagery
-  data/            siteConfig, navigation, courses, faculty, testimonials, faq, events, blog, stats
-  lib/             cn.js, validators.js, schema.js (JSON-LD builders)
-  hooks/           useScrollReveal.js
+  data/            siteConfig, navigation, courses, faculty, testimonials, faq, events, blog, stats,
+                   goals, learningPaths, trust, studentDashboard, gallery
+  lib/             cn.js, validators.js, dates.js, routeLoading.js, schema.js (JSON-LD builders),
+                   storage.js (the single localStorage boundary), states.js (state → label/variant/
+                   icon), courseFilters.js, search.js, recommend.js, eventSchedule.js, calendar.js
+                   (.ics + provider URL), enquiry.js (WhatsApp/email dispatch seam)
+  hooks/           useScrollReveal.js, useSavedCourses.js, useCourseFilters.js, useComparison.js,
+                   useDialog.js
   components/
-    layout/        Layout, Navbar, Footer, ScrollToTop
-    ui/            Button, Card, Container, SectionHeading, Badge, Input, Textarea, Select, Accordion, Breadcrumbs, Spinner
-    common/        Hero, Statistics, CourseCard, FacultyCard, ReviewCard, Gallery, Timeline, FAQ, Newsletter, GoogleMap, CTASection, TestimonialSlider, CourseGrid, BlogCard, EventCard, FeatureCard
+    layout/        Layout, Navbar, Footer, ScrollToTop, ErrorBoundary, RouteProgress
+    ui/            Button, Card, Container, SectionHeading, Badge, Input, Textarea, Select, Accordion,
+                   Breadcrumbs, Spinner, Dialog, EmptyState, Checkbox, RadioGroup, Stepper, Combobox
+    common/        Hero, Statistics, CourseCard, FacultyCard, ReviewCard, Gallery, Timeline, FAQ,
+                   Newsletter, GoogleMap, CTASection, TestimonialSlider, CourseGrid, BlogCard,
+                   EventCard, FeatureCard, RepresentativeNote, CourseFilters, CourseDetailView,
+                   ComparisonTable, LearningPathWizard, GlobalSearch, TrustSection, EventFilters,
+                   AddToCalendar
     cta/           FloatingWhatsApp, FloatingCall, StickyBottomCTA
-    forms/         AdmissionForm, ContactForm
+    forms/         AdmissionForm, AdmissionFormSteps, ContactForm
     seo/           Seo, StructuredData
-  pages/           Home, About, Courses, SpokenEnglish, ScienceCoaching, ComputerCourses, Faculty, Gallery, SuccessStories, Blog, Events, Admission, Career, Faq, Contact, PrivacyPolicy, Terms, NotFound
+  pages/           Home, About, Courses, CourseDetail, SpokenEnglish, ScienceCoaching,
+                   ComputerCourses, Faculty, Gallery, SuccessStories, Blog, Events, EventDetail,
+                   Admission, Career, Faq, Contact, LearningPath, Compare, Search, Dashboard,
+                   PrivacyPolicy, Terms, NotFound
   App.jsx          route table (React.lazy + Suspense) under <Layout>
   main.jsx         bootstrap (HelmetProvider + BrowserRouter)
   index.css        @import "tailwindcss" + @theme brand tokens
@@ -126,9 +141,11 @@ vite.config.js     react() + tailwindcss() plugins
 
 ## Pages
 
-The application ships 17 content pages plus a catch-all 404, all lazy-loaded under a
+`src/App.jsx` registers 23 route entries plus a catch-all 404, all lazy-loaded under a
 shared layout shell (navbar, footer, floating WhatsApp/Call widgets, and a mobile
-sticky CTA bar):
+sticky CTA bar). Items 1–17 are the original content pages; items 18–23 were added by
+the Smart Learning Experience work and are a mix of dynamic patterns and utility
+routes, which the note after the list explains:
 
 1. **Home** — hero, featured courses, animated statistics, testimonials, faculty
    preview, and an admission call-to-action.
@@ -151,7 +168,64 @@ sticky CTA bar):
 15. **Contact** — contact form, Google Map, and contact details.
 16. **Privacy Policy** — the site's privacy policy.
 17. **Terms** — the site's terms of service.
-18. **404 — Not Found** — a friendly catch-all for unmatched routes.
+18. **Course detail (`/courses/:slug`)** — one page per catalogue course (ten today),
+    carrying that course's own depth: its level, eligibility, prerequisites, outcomes,
+    curriculum and suitability wherever the institute's existing description supports
+    them, plus the shared six-stage learning journey. Blocks without approved content
+    are omitted entirely rather than filled in — see [Limitations](#limitations).
+19. **Event detail (`/events/:slug`)** — one page per event record (five today), with a
+    real RFC 5545 `.ics` download and a calendar-provider template link generated in
+    the browser. No integration is claimed: the copy says a file downloaded or a
+    provider opened pre-filled, never that anything was synced.
+20. **Find Your Learning Path (`/learning-path`)** — a four-question questionnaire that
+    recommends courses from the catalogue and shows the rules that produced each
+    result. The scoring is a deterministic, fixed-weight pass that runs entirely on
+    the client — there is no model and no service behind it — so the feature is never
+    labelled AI, intelligent or personalized in the interface.
+21. **Compare (`/compare`)** — side-by-side comparison of up to three courses,
+    shareable as `?courses=a,b,c`.
+22. **Search (`/search`)** — one client-side index over courses, events, faculty,
+    articles, FAQs, and the page set, reached from the header's search control.
+23. **My Learning (`/dashboard`)** — an unauthenticated front-end foundation showing
+    the visitor's saved courses, their learning-path result, and the real upcoming
+    events. There is no account, no sign-in and no enrolment tracking, and the page
+    says so; it names no person and fabricates no progress figure.
+24. **404 — Not Found** — a friendly catch-all for unmatched routes.
+
+**Three route categories, and why the two counts differ.** `src/App.jsx`,
+`src/data/navigation.js` and `public/sitemap.xml` must stay in lock-step, but a
+registered route answers four independent questions — registration, human
+reachability, canonical URL, and sitemap membership — and answers them differently
+depending on its kind:
+
+- **Route patterns** — 2 entries (`courses/:slug`, `events/:slug`). They have no single
+  path, so `src/data/navigation.js` cannot list them; each expands to one concrete URL
+  per record, giving **15** sitemap URLs today (ten courses, five events). Every one is
+  indexable with its own canonical and breadcrumb trail, and is reached by a
+  course/event card, a search result or a comparison row.
+- **Concrete indexable URLs** — 18 entries (items 1–17 above plus `/learning-path`).
+  Each renders stable authored content at its bare URL, passes an explicit `canonical`
+  to `<Seo>`, appears in the sitemap, and is listed in `src/data/navigation.js`.
+- **Control-reachable utility routes** — 3 entries (`/compare`, `/search`,
+  `/dashboard`). Registered, but deliberately in **neither** navigation surface **nor**
+  the sitemap, because each one's content is entirely query-determined or is the
+  visitor's own local state. Each passes no `canonical` and emits
+  `noindex, follow`. Their absence from those artifacts is intentional, **not** drift.
+
+So 2 + 18 + 3 = **23 route entries**, while the sitemap holds 15 + 18 = **33 URLs**.
+The two numbers are not meant to match, and neither is wrong. The invariant that does
+hold in both directions: every registered route has a human-reachable affordance — a
+navigation link for the concrete pages, a card or search result for the patterns, and a
+named control for the utility routes (`/compare` from "Compare selected" in the
+catalogue's result-count row, `/search` from the header search trigger, `/dashboard`
+from the header's saved-courses affordance) — so no page is orphaned, and every path
+`src/data/navigation.js` lists is both registered and indexable.
+
+Note that `/courses/spoken-english` (the new detail route) and `/spoken-english` (the
+existing track landing page) are **different pages and both continue to resolve**. One
+did not replace the other: React Router v7 ranks a static segment above a dynamic one
+irrespective of source order, so `/courses` still resolves to the catalogue and the
+track pages keep their original URLs and their own calls to action.
 
 ## Contact & Brand
 
@@ -180,11 +254,47 @@ visible focus states, a logical heading hierarchy, descriptive alt text, and
 AA-contrast color pairings across the blue / orange / green palette on white. For
 discoverability, every page emits a unique meta title and description together with
 Open Graph and Twitter card metadata, and injects JSON-LD structured data
-(**Organization**, **LocalBusiness**, **Course**, and **Breadcrumb**). Static
+(**Organization**, **LocalBusiness**, **Course**, **Breadcrumb**, and — behind a
+per-record verification gate described below — **Event** and **FAQPage**). Static
 `public/robots.txt` and `public/sitemap.xml` files complete the SEO surface. All of
 this metadata is set **client-side** (via `react-helmet-async` and runtime JSON-LD
 injection); see [Deployment & Hosting](#deployment--hosting) for how this affects
 crawlers that do not execute JavaScript.
+
+**Structured data is gated on verified content, not merely on available content.**
+JSON-LD asserts to a machine that the marked-up content is accurate, and three data
+modules label their own content provisional pending institute sign-off:
+`courses.js` (durations, highlights, curriculum detail), `events.js` (final media,
+exact dates and times) and `faq.js` (timings, batches, fees, payment options, trial
+availability, certificate details). Marking up a provisional claim would be a policy
+violation rather than a stylistic choice, so the two new blocks are withheld until the
+underlying record is confirmed:
+
+- **Event** is emitted on an event detail page only where that record's
+  `scheduleConfirmed` is `true`, and never on the `/events` listing — an event's own
+  URL is the only valid place for its markup. All five records currently ship
+  `scheduleConfirmed: false`, so **no Event block is emitted anywhere today**, and that
+  absence is the expected, verified outcome rather than a bug. A record with no
+  truthful resolvable location stays withheld even once its schedule is confirmed,
+  because `location` is a required property and prose describing an arrangement does
+  not satisfy it.
+- **FAQPage** is emitted only where **every** question in the emitted set carries
+  `answerConfirmed: true` — all-or-nothing per set, because partially marked-up answers
+  misrepresent which ones are authoritative. All ten records currently ship
+  `answerConfirmed: false`, so no FAQPage block is emitted today either. The questions
+  and answers still render visibly on the page exactly as before.
+- **Breadcrumb** emits unconditionally on the indexable routes, because it describes
+  the site's own structure rather than a content claim. The three `noindex` utility
+  routes render their visible trail but emit no JSON-LD at all, since markup on a page
+  excluded from the index has no consumer.
+- **Course** is unchanged: still emitted for all ten courses, through the same builder
+  over the same three fields (name, description, and the provider from `siteConfig`),
+  so none of the newly added course fields enters the markup.
+
+The gate is **one boolean per record**. The richer blocks appear the moment the
+institute confirms the underlying content, with no code change required. Nothing here
+emits `aggregateRating`, `review`, a priced `offers`, or an accreditation field,
+because the repository holds no basis for any of them.
 
 ## Deployment & Hosting
 
@@ -311,7 +421,30 @@ this build** and are documented so integrators are not surprised:
   store. Admission, Contact, and Newsletter forms perform a **client-side handoff** by
   opening a prefilled WhatsApp chat (`https://wa.me/…`) or a `mailto:` email draft;
   nothing is submitted to or stored on a server, and the UI states say so truthfully
-  ("draft opened — not yet sent").
+  ("draft opened — not yet sent"). The one thing the site does keep is **device-local**
+  and is described in the next bullet; it is not a server store, and it does not soften
+  this one.
+- **Saved courses use device-local browser storage — the site's only persistence.**
+  Saving a course writes to the browser's own `localStorage`, on the visitor's own
+  device, under a single namespaced, versioned key — **`cible:saved-courses:v1`** —
+  through `src/lib/storage.js`, the one module permitted to touch it. The stored value
+  holds **only course identifiers** (the same slugs already public in every course URL)
+  plus a version marker: no name, no contact detail, no message text, no timestamp, and
+  **no personal information** of any kind. It is **never transmitted anywhere** — there
+  is still no backend for it to reach — and the visitor stays in control of it: clear
+  the whole list on the **My Learning** page, unsave a single course with the same
+  control that saved it, or clear this site's data in the browser. It is **functional,
+  not analytical**: it sets no cookie, identifies no person, and therefore needs no
+  consent banner. It also degrades safely — a corrupted, wrong-shaped or unavailable
+  store yields an empty list rather than an error, slugs that no longer exist in the
+  catalogue are dropped on read, and when the browser refuses the write (a full quota,
+  or Safari private browsing, where the quota is effectively zero) the selection still
+  works for the rest of the session while the interface discloses that it will not
+  survive a reload. This is **distinct from `cible:chunk-reload`**, the pre-existing
+  one-shot chunk-recovery flag in **sessionStorage** owned by `src/lib/routeLoading.js`
+  — the two storage areas are deliberately kept separate, and `localStorage.clear()` is
+  never called, so unrelated keys on the origin are never destroyed. The visitor-facing
+  version of this disclosure is on the Privacy Policy page.
 - **No automated tests.** There is no unit/integration/e2e test suite and no `test`
   script; the gates are `npm run lint` (Oxlint) and a clean `npm run build`.
 - **No offline / service worker.** `site.webmanifest` supplies installability metadata
@@ -323,6 +456,25 @@ this build** and are documented so integrators are not surprised:
   `env(safe-area-inset-*)` padding is implemented for the fixed mobile CTA, but it has
   not been verified on a physical notched iOS device or the iOS Simulator in this
   environment; verify on representative iOS hardware before launch.
+- **Blog articles have no URL of their own.** `src/data/blog.js` carries a `content`
+  field per article, but no `/blog/:slug` route exists, so that full text is not
+  rendered on a page of its own and a blog card is deliberately non-interactive rather
+  than linking nowhere. Course and event detail routes were requested and built; blog
+  detail routes were not, so this is recorded here rather than added unasked.
+- **One declared dependency is unused.** `aos ^2.3.4` is declared in `package.json`
+  but has **zero importers** anywhere in `src/` — scroll reveals are owned by
+  `framer-motion` + `react-intersection-observer` through `useScrollReveal`. It is
+  deliberately left in place rather than removed, because removing it would itself edit
+  `package.json` and regenerate entries in `package-lock.json`, and adopting it would
+  fork a reveal approach the codebase already has one of. It is therefore a recorded
+  known limitation, to be resolved in a dedicated dependency-maintenance change rather
+  than silently as a side effect of feature work.
+- **Some course detail blocks await content-owner input.** Eligibility, prerequisites,
+  outcomes, curriculum and suitability are optional per course, and a course detail page
+  omits any block — heading included — that the institute's existing description does
+  not support, rather than inventing plausible-sounding copy. Nine of the ten courses
+  also carry no difficulty level yet, so no level badge renders on those pages. A page
+  showing fewer blocks is the honest state; supply the content to fill it.
 - **Representative content and assets.** See [License & Notes](#license--notes).
 
 ## License & Notes
@@ -332,9 +484,23 @@ this build** and are documented so integrators are not surprised:
   (real photographs, verified faculty biographies, and actual student records)
   before launch. This is disclosed **visibly in the running app** — a site-wide
   "Demo content notice" band in the footer, plus point-of-claim notices on the
-  Faculty, Success Stories, About, Career, Events, Blog, and Courses pages — and is
-  gated by the `representativeContent` flag in `src/data/siteConfig.js` (set it to
-  `false` once the content is client-verified to retire every notice at once).
+  Faculty, Success Stories, About, Career, Events, Blog, and Courses pages, on the
+  course detail and event detail routes (each inheriting the disclosure its listing
+  page already makes about durations, highlights and dates), and in the trust sections,
+  which render alongside representative course copy — and is gated by the
+  `representativeContent` flag in `src/data/siteConfig.js` (set it to `false` once the
+  content is client-verified to retire every content notice at once).
+- **One notice is deliberately exempt from that flag, and must stay that way.** The
+  **My Learning** dashboard renders the same `RepresentativeNote` component with
+  `gate="always"`, so its notice survives `representativeContent: false`. That is
+  intentional: the dashboard's disclosure states an **architectural** fact rather than
+  content awaiting confirmation — there is no account, no authentication and no server —
+  so confirming the institute's course content changes nothing about it. Retiring it
+  with the content flag would delete the only statement telling a visitor that this
+  surface does not track a real enrolment, at precisely the moment the site starts to
+  look finished. `src/pages/Dashboard.jsx` is the only caller that passes `gate`; every
+  other call site uses the default `gate="content"` and retires itself as intended. Do
+  not "fix" the dashboard back onto the content gate.
 - **Unverified social profiles are hidden by default.** Social links and the
   `sameAs` entries in the JSON-LD are gated behind `socialVerified` in
   `src/data/siteConfig.js` (currently `false`), so no unconfirmed identity is
